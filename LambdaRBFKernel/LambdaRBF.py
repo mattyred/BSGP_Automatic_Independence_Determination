@@ -23,28 +23,31 @@ class LambdaRBF(gpflow.kernels.Kernel):
         """
         if X2 is None:
             X2 = X
-        N = X.shape[0]
+        N1 = X.shape[0]
+        N2 = X2.shape[0]
         #Lambda = self._to_matrix(self.Lambda) TRY
         Lambda = tf.linalg.matmul(self.Lambda_L, tf.transpose(self.Lambda_L)) # recover LLᵀ
 
         # compute z, z2
-        z = self._z(X, Lambda)
-        z2 = self._z(X2, Lambda)
+        z = self._z(X, Lambda) # N1x1 array
+        z2 = self._z(X2, Lambda) # N2x1 array
         # compute X(X2Λ)ᵀ
-        X2Lambda = tf.linalg.matmul(X, Lambda)
-        XX2LambdaT = tf.linalg.matmul(X, tf.transpose(X2Lambda))
+        X2Lambda = tf.linalg.matmul(X2, Lambda)
+        XX2LambdaT = tf.linalg.matmul(X, tf.transpose(X2Lambda)) # N1xN2 matrix
         # compute z1ᵀ 
-        ones = tf.ones(shape=(N,1), dtype=tf.float64)
-        zcol = tf.linalg.matmul(z, tf.transpose(ones))
+        ones_N2 = tf.ones(shape=(N2,1), dtype=tf.float64) # N2x1 array
+        zcol = tf.linalg.matmul(z, tf.transpose(ones_N2)) # N1xN2 matrix
         # compute 1z2ᵀ 
-        zrow = tf.linalg.matmul(ones, tf.transpose(z2))
+        ones_N1 = tf.ones(shape=(N1,1), dtype=tf.float64) # N1x1 array
+        zrow = tf.linalg.matmul(ones_N1, tf.transpose(z2)) # N1xN2 matrix
 
         exp_arg = zcol - 2*XX2LambdaT + zrow
         Kxx = tf.math.exp(-0.5 * exp_arg)
         return self.variance * Kxx
     
     def K_diag(self, X):
-        return self.variance * tf.reshape(X, (-1,))  # this returns a 1D tensor
+        N = X.shape[0]
+        return tf.fill([N,], self.variance)  # this returns a 1D tensor
     
     def _z(self, X, Lambda):
         XLambda = tf.linalg.matmul(X, Lambda)
