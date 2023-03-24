@@ -5,12 +5,9 @@ import tensorflow_probability as tfp
 class LambdaRBF(gpflow.kernels.Kernel):  
     def __init__(self, Lambda_L, variance=1.0):
         super().__init__()
-        # Convert the Lambda matrix into an array (D*2,1)
-        #self.Lambda = self._to_array(Lambda) TRY
-        #self.Lambda = tf.gather_nd(l, indices=[[0,0], [1,1]])
         # Create a Parameter associated to Lambda matrix
-        #self.L = gpflow.Parameter(L, transform=gpflow.utilities.triangular(), dtype=tf.float64, name='KernelPrecision_L')
-        self.Lambda_L = gpflow.Parameter(Lambda_L, transform=gpflow.utilities.triangular(), dtype=tf.float64, name='KernelPrecision_L')
+        # self.Lambda_L = gpflow.Parameter(Lambda_L, transform=gpflow.utilities.triangular(), dtype=tf.float64, name='KernelPrecision_L') OK
+        self.Lambda_L = gpflow.Parameter(Lambda_L, transform=None, dtype=tf.float64, name='KernelPrecision_L')
         self.variance = gpflow.Parameter(variance, transform=gpflow.utilities.positive(), dtype=tf.float64, name='KernelAmplitude')
         #self.Kxx = tf.Variable(np.empty((N, N), dtype=np.float64), name='KernelMatrix')
 
@@ -25,8 +22,9 @@ class LambdaRBF(gpflow.kernels.Kernel):
             X2 = X
         N1 = X.shape[0]
         N2 = X2.shape[0]
-        #Lambda = self._to_matrix(self.Lambda) TRY
-        Lambda = tf.linalg.matmul(self.Lambda_L, tf.transpose(self.Lambda_L)) # recover LLᵀ
+        Lambda_L = tfp.math.fill_triangular(self.Lambda_L) # TRY
+        Lambda = tf.linalg.matmul(Lambda_L, tf.transpose(Lambda_L))
+        # Lambda = tf.linalg.matmul(self.Lambda_L, tf.transpose(self.Lambda_L)) # recover LLᵀ
 
         # compute z, z2
         z = self._z(X, Lambda) # N1x1 array
@@ -48,6 +46,7 @@ class LambdaRBF(gpflow.kernels.Kernel):
     def K_diag(self, X):
         N = X.shape[0]
         return tf.fill([N,], self.variance)  # this returns a 1D tensor
+        #return tf.linalg.diag_part(self.K(X))
     
     def _z(self, X, Lambda):
         XLambda = tf.linalg.matmul(X, Lambda)
