@@ -22,8 +22,7 @@ class LambdaRBF(gpflow.kernels.Kernel):
             X2 = X
         N1 = X.shape[0]
         N2 = X2.shape[0]
-        Lambda_L = tfp.math.fill_triangular(self.Lambda_L) # TRY
-        Lambda = tf.linalg.matmul(Lambda_L, tf.transpose(Lambda_L))
+        Lambda = self.get_Lambda()
         # Lambda = tf.linalg.matmul(self.Lambda_L, tf.transpose(self.Lambda_L)) # recover LLᵀ
 
         # compute z, z2
@@ -53,10 +52,11 @@ class LambdaRBF(gpflow.kernels.Kernel):
         XLambdaX = tf.math.multiply(XLambda, X)
         return tf.math.reduce_sum(XLambdaX, axis=1, keepdims=True)
     
-    def _to_array(self, L):
-        D = tf.shape(L).numpy()[0]
-        return tf.reshape(L, [D*2,1])
+    def get_Lambda(self):
+        Lambda_L = tfp.math.fill_triangular(self.Lambda_L)
+        Lambda = tf.linalg.matmul(Lambda_L, tf.transpose(Lambda_L))
+        return Lambda
     
-    def _to_matrix(self, l):
-        D = int(tf.shape(l).numpy()[0]/2)
-        return tf.reshape(l, [D,D])
+    def __str__(self):
+        Lambda = self.get_Lambda()
+        return 'Variance: {}\nLambda: {}'.format(self.variance, Lambda)
