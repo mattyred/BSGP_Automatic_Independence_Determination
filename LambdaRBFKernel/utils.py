@@ -6,6 +6,8 @@ from torch.utils.data import  TensorDataset
 from sklearn.model_selection import train_test_split
 import torch
 import matplotlib.pyplot as plt
+from scipy.stats import norm
+from scipy.special import logsumexp
 import tensorflow_probability as tfp
 from LambdaRBF import LambdaRBF
 import gpflow # 2.7.0
@@ -62,7 +64,7 @@ def get_lower_triangular_from_diag(diag):
     return L
 
 def create_dataset(dataset, fold):
-    dataset_path = ('../data/' + dataset + '.pth')
+    dataset_path = ('./data/' + dataset + '.pth')
     #logger.info('Loading dataset from %s' % dataset_path)
     dataset = TensorDataset(*torch.load(dataset_path))
     X, Y = dataset.tensors
@@ -81,6 +83,15 @@ def measure_rmse(model, X_train, Y_train, X_test, Y_test):
     y_pred_test, _ = model.predict_f(X_test)
     test_rmse_stan = tf.sqrt(tf.reduce_mean((Y_test - y_pred_test)**2)).numpy()
     return train_rmse_stan, test_rmse_stan
+
+def measure_mnll(model, X_train, Y_train, Ystd, X_test, Y_test):
+    mean_train, var_train = model.predict_f(X_train)
+    logps = norm.logpdf(np.repeat(Y_train[None, :, :]*Ystd, X_train.shape[0], axis=0), mean_train*Ystd, np.sqrt(var_train)*Ystd)
+    train_mnll = -np.mean(logsumexp(logps, axis=0)) - np.log(X_train.shape[0])
+    mean_test, var_test = model.predict_f(X_test)
+    logps = norm.logpdf(np.repeat(Y_test[None, :, :]*Ystd, X_test.shape[0], axis=0), mean_test*Ystd, np.sqrt(var_test)*Ystd)
+    test_mnll = -np.mean(logsumexp(logps, axis=0)) - np.log(X_test.shape[0])
+    return train_mnll, test_mnll
 
 def train_GPR_LRBF_model(X_train=None, Y_train=None, prior=None, iprint=True):
     D = X_train.shape[1]
