@@ -17,8 +17,10 @@ class LambdaRBF(gpflow.kernels.Kernel):
         """
         if X2 is None:
             X2 = X
-        N1 = X.shape[0]
-        N2 = X2.shape[0]
+        #N1 = X.shape[0] WORKS
+        #N2 = X2.shape[0] WORKS
+        N1 = tf.squeeze(tf.shape(X)[:-1])
+        N2 = tf.squeeze(tf.shape(X2)[:-1])
         Lambda = self.get_Lambda() # recover LLᵀ
 
         # compute z, z2
@@ -39,8 +41,9 @@ class LambdaRBF(gpflow.kernels.Kernel):
         return self.variance * Kxx
     
     def K_diag(self, X):
-        N = X.shape[0]
-        return tf.fill([N,], self.variance)  # this returns a 1D tensor
+        #N = X.shape[0] WORKS
+        #return tf.fill([N,], self.variance)  # this returns a 1D tensor WORKS
+        return tf.fill(tf.shape(X)[:-1], tf.squeeze(self.variance))
     
     def _z(self, X, Lambda):
         XLambda = tf.linalg.matmul(X, Lambda)

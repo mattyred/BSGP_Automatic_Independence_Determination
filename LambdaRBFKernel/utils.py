@@ -63,19 +63,21 @@ def get_lower_triangular_from_diag(diag):
     L = tf.linalg.cholesky(Lambda)
     return L
 
-def create_dataset(dataset, fold):
+def create_dataset(dataset, fold, static_train_test=True):
     dataset_path = ('./data/' + dataset + '.pth')
     #logger.info('Loading dataset from %s' % dataset_path)
     dataset = TensorDataset(*torch.load(dataset_path))
     X, Y = dataset.tensors
     X, Y = X.numpy().astype('float64'), Y.numpy().astype('float64')
+    if static_train_test:
+        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20, random_state=fold)
+        Y_train_mean, Y_train_std = Y_train.mean(0), Y_train.std(0) + 1e-9
+        Y_train = (Y_train - Y_train_mean) / Y_train_std
+        Y_test = (Y_test - Y_train_mean) / Y_train_std
+        return X_train, Y_train, X_test, Y_test, Y_train_mean, Y_train_std
+    else:
+        return X, Y
 
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20, random_state=fold)
-    Y_train_mean, Y_train_std = Y_train.mean(0), Y_train.std(0) + 1e-9
-    Y_train = (Y_train - Y_train_mean) / Y_train_std
-    Y_test = (Y_test - Y_train_mean) / Y_train_std
-
-    return X_train, Y_train, X_test, Y_test, Y_train_mean, Y_train_std
 
 def measure_rmse(model, X_train, Y_train, X_test, Y_test):
     y_pred_train, _ = model.predict_f(X_train)
@@ -86,12 +88,17 @@ def measure_rmse(model, X_train, Y_train, X_test, Y_test):
 
 def measure_mnll(model, X_train, Y_train, Ystd, X_test, Y_test):
     mean_train, var_train = model.predict_f(X_train)
+    mean_test, var_test = model.predict_f(X_test)
+    """
     logps_train = norm.logpdf(np.repeat(Y_train[None, :, :]*Ystd, X_train.shape[0], axis=0), mean_train*Ystd, np.sqrt(var_train)*Ystd)
     train_mnll = -np.mean(logsumexp(logps_train, axis=0) - np.log(X_train.shape[0]))
 
     mean_test, var_test = model.predict_f(X_test)
     logps_test = norm.logpdf(np.repeat(Y_test[None, :, :]*Ystd, X_test.shape[0], axis=0), mean_test*Ystd, np.sqrt(var_test)*Ystd)
     test_mnll = -np.mean(logsumexp(logps_test, axis=0) - np.log(X_test.shape[0]))
+    """
+    train_mnll = -norm.logpdf(Y_train*Ystd, mean_train*Ystd, np.sqrt(var_train)*Ystd).mean()
+    test_mnll = -norm.logpdf(Y_test*Ystd, mean_test*Ystd, np.sqrt(var_test)*Ystd).mean()
     return train_mnll, test_mnll
 
 def train_GPR_LRBF_model(X_train=None, Y_train=None, prior=None, iprint=True):

@@ -1,0 +1,10 @@
+{
+    "model": "bsgp",
+    "num_inducing": 100,
+    "minibatch_size": 404,
+    "n_layers": 1,
+    "prior_type": "normal",
+    "fold": 0,
+    "dataset": "boston",
+    "test_mnll": 3.1087246345768342
+}
