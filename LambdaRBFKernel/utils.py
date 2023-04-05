@@ -101,7 +101,7 @@ def measure_mnll(model, X_train, Y_train, Ystd, X_test, Y_test):
     test_mnll = -norm.logpdf(Y_test*Ystd, mean_test*Ystd, np.sqrt(var_test)*Ystd).mean()
     return train_mnll, test_mnll
 
-def train_GPR_LRBF_model(X_train=None, Y_train=None, prior=None, iprint=True):
+def train_GPR_LRBF_model(X_train=None, Y_train=None, reg=-1, prior=None, iprint=True):
     D = X_train.shape[1]
     # Define the kernel 
     lengthscales = tf.constant([D**0.5]*D, dtype=tf.float64)
@@ -112,20 +112,27 @@ def train_GPR_LRBF_model(X_train=None, Y_train=None, prior=None, iprint=True):
         LRBF.Lambda_L.prior = prior['Lambda_L_prior']
         LRBF.variance.prior = prior['variance_prior']
     # GPR model (no approx)
-    model_LRBF = gpflow.models.GPR(
+    model = gpflow.models.GPR(
         (X_train, Y_train),
         kernel=LRBF,
     )
-    gpflow.utilities.print_summary(model_LRBF, fmt="notebook")
-    print('--- Initial values ---')
-    print('Variance: %.3f'%(LRBF.variance.numpy()))
-    print('Lambda diagonal: ', tf.linalg.diag_part(LRBF.get_Lambda()).numpy())
+    gpflow.utilities.print_summary(model, fmt="notebook")
+    if iprint:
+        print('--- Initial values ---')
+        print('Variance: %.3f'%(LRBF.variance.numpy()))
+        print('Lambda diagonal: ', tf.linalg.diag_part(LRBF.get_Lambda()).numpy())
     opt = gpflow.optimizers.Scipy()
-    opt.minimize(model_LRBF.training_loss, model_LRBF.trainable_variables)
-    print('--- Final values ---')
-    print('Variance: %.3f'%(LRBF.variance.numpy()))
-    plot_matrix(LRBF.get_Lambda())
-    return model_LRBF
+    if reg > 0:
+        def regularized_training_loss():
+            return -(model.log_marginal_likelihood() + model.log_prior_density()) + reg * tf.norm(model.kernel.get_Lambda(), ord=1)
+        opt.minimize(regularized_training_loss, model.trainable_variables)
+    else:
+        opt.minimize(model.training_loss(), model.trainable_variables)
+    if iprint:
+        print('--- Final values ---')
+        print('Variance: %.3f'%(LRBF.variance.numpy()))
+        plot_matrix(LRBF.get_Lambda())
+    return model, LRBF.get_Lambda()
 
 def train_GPR_RBF_model(X_train=None, Y_train=None, prior=None, iprint=True):
     D = X_train.shape[1]
@@ -133,21 +140,22 @@ def train_GPR_RBF_model(X_train=None, Y_train=None, prior=None, iprint=True):
     if prior is not None:
         RBF.lengthscales.prior = prior['lengthscales_prior']
         RBF.variance.prior = prior['variance_prior']
-    model_RBF = gpflow.models.GPR(
+    model = gpflow.models.GPR(
         (X_train, Y_train),
         kernel=RBF,
     )
-    gpflow.utilities.print_summary(model_RBF, fmt="notebook")
+    gpflow.utilities.print_summary(model, fmt="notebook")
     if iprint:
         print('--- Initial values ---')
         print('Variance: %.3f'%(RBF.variance.numpy()))
         print('Lengthscales: ', RBF.lengthscales.numpy())
     opt = gpflow.optimizers.Scipy()
-    opt.minimize(model_RBF.training_loss, model_RBF.trainable_variables)
+    opt.minimize(model.training_loss, model.trainable_variables)
     if iprint:
         print('--- Final values ---')
         print('Variance: %.3f'%(RBF.variance.numpy()))
         print('Lengthscales: ', RBF.lengthscales.numpy())
     Lambda_L_RBF = get_lower_triangular_from_diag(RBF.lengthscales.numpy())
-    plot_matrix(tf.matmul(Lambda_L_RBF, tf.transpose(Lambda_L_RBF)))
-    return model_RBF
+    Lambda_RBF = tf.matmul(Lambda_L_RBF, tf.transpose(Lambda_L_RBF))
+    plot_matrix(Lambda_RBF)
+    return model, Lambda_L_RBF
