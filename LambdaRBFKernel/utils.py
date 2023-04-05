@@ -127,7 +127,7 @@ def train_GPR_LRBF_model(X_train=None, Y_train=None, reg=-1, prior=None, iprint=
             return -(model.log_marginal_likelihood() + model.log_prior_density()) + reg * tf.norm(model.kernel.get_Lambda(), ord=1)
         opt.minimize(regularized_training_loss, model.trainable_variables)
     else:
-        opt.minimize(model.training_loss(), model.trainable_variables)
+        opt.minimize(model.training_loss, model.trainable_variables)
     if iprint:
         print('--- Final values ---')
         print('Variance: %.3f'%(LRBF.variance.numpy()))
