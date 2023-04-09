@@ -22,7 +22,7 @@
 
 | Model |  Kernel  |     $l$, $\sigma_f^2$     | $\sigma_f^2$ | r-L1 |  RMSE-static  | MNLL-static | RMSE-kfold | MNLL-kfold | Time |
 | :---: | :------: | :-----------------------: | :----------: | :--: | :-----------: | :---------: | :--------: | :--------: | :--: |
-|  GPR  | RBF(ARD) | $l=\sqrt{D},\sigma_f^2=1$ |    1.765     |  -   | 0.173 / 0.313 |             |            |            |      |
+|  GPR  | RBF(ARD) | $l=\sqrt{D},\sigma_f^2=1$ |    1.765     |  -   | 0.173 / 0.313 |             |   0.503    |   4.145    |      |
 |  GPR  |   LRBF   | $l=\sqrt{D},\sigma_f^2=1$ |    1.959     |  -   | 0.113 / 0.327 |             |            |            |      |
 |  GPR  |   LRBF   | $l=\sqrt{D},\sigma_f^2=1$ |    2.058     | 0.1  | 0.115 / 0.328 |             |            |            |      |
 |  GPR  |   LRBF   | $l=\sqrt{D},\sigma_f^2=1$ |    3.851     |  1   | 0.184 / 0.302 |             |            |            |      |

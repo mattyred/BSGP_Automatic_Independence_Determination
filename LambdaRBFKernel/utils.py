@@ -6,6 +6,7 @@ from torch.utils.data import  TensorDataset
 from sklearn.model_selection import train_test_split
 import torch
 import matplotlib.pyplot as plt
+from sklearn.model_selection import KFold
 from scipy.stats import norm
 from scipy.special import logsumexp
 import tensorflow_probability as tfp
@@ -14,7 +15,7 @@ import gpflow # 2.7.0
 plt.rcParams["figure.figsize"] = (12, 6)
 plt.style.use("ggplot")
 
-def plot_matrix(M=None, cmap='vlag', correlation=False):
+def plot_matrix(M=None, cmap='vlag', annot=True, correlation=False):
     """
     M: Matrix to be visualized with a color mapping
     correlation: plot the correlation matrix of the dataset M
@@ -27,12 +28,12 @@ def plot_matrix(M=None, cmap='vlag', correlation=False):
         column_values = ['%d'%(i) for i in range(M.shape[1])]
         df = pd.DataFrame(data = M, index = index_values, columns = column_values)
         corr = df.corr()
-        sns.heatmap(corr, annot=True, cmap=cmap)
+        sns.heatmap(corr, annot=annot, cmap=cmap)
     else:
         min = np.min(M)
         max = np.max(M)
         center = (min+max)/2
-        sns.heatmap(M, annot=True, cmap=cmap, vmax=max, vmin=min, center=center, linewidth=.5)
+        sns.heatmap(M, annot=annot, cmap=cmap, vmax=max, vmin=0, center=0, linewidth=.5)
 
 def compare_matrix(M1, M2, cmap='vlag'):
     fig, axes = plt.subplots(1, 2, figsize=(24,6))
@@ -159,3 +160,101 @@ def train_GPR_RBF_model(X_train=None, Y_train=None, prior=None, iprint=True):
     Lambda_RBF = tf.matmul(Lambda_L_RBF, tf.transpose(Lambda_L_RBF))
     plot_matrix(Lambda_RBF)
     return model, Lambda_L_RBF
+
+def run_adam(model, train_dataset, minibatch_size, iterations):
+    """
+    Utility function running the Adam optimizer
+
+    :param model: GPflow model
+    :param interations: number of iterations
+    """
+    # Create an Adam Optimizer action
+    logf = []
+    train_iter = iter(train_dataset.batch(minibatch_size))
+    training_loss = model.training_loss_closure(train_iter, compile=True)
+    optimizer = tf.optimizers.Adam(learning_rate=0.01)
+
+    @tf.function
+    def optimization_step():
+        optimizer.minimize(training_loss, model.trainable_variables)
+
+    for step in range(iterations):
+        optimization_step()
+        if step % 10 == 0:
+            elbo = -training_loss().numpy()
+            logf.append(elbo)
+    return logf
+
+def kfold_cv_model(model=None, X=None, Y=None, prior=None, kernel=None, k_folds=None, model_params=None, iprint=False):
+    results = {'train_rmse': [], 
+                'test_rmse': [], 
+                'train_mnll': [], 
+                'test_mnll': [], 
+                'avg_train_rmse': 0.,
+                'avg_test_rmse': 0.,
+                'avg_train_mnll': 0.,
+                'avg_test_mnll': 0.,}
+    D = X.shape[1]
+    for _ , (train_index, test_index) in enumerate(k_folds.split(X)):
+        # Define X_train, Y_train, X_test, Y_test for fold i
+        X_train = X[train_index,:]
+        X_test = X[test_index,:]
+        Y_train = Y[train_index]
+        Y_test = Y[test_index]
+        Y_train_mean, Y_train_std = Y_train.mean(0), Y_train.std(0) + 1e-9
+        Y_train = (Y_train - Y_train_mean) / Y_train_std
+        Y_test = (Y_test - Y_train_mean) / Y_train_std
+
+        # Define the kernel: RBF(standard) or Lambda RBF
+        if kernel == 'RBF':
+            kernel = gpflow.kernels.SquaredExponential(variance=1, lengthscales=(D**0.5)*np.ones(D))
+        elif kernel == 'LRBF':
+            lengthscales = tf.constant([D**0.5]*D, dtype=tf.float64)
+            Lambda_L = get_lower_triangular_from_diag(lengthscales)
+            Lambda_L_array = tfp.math.fill_triangular_inverse(Lambda_L)
+            kernel = LambdaRBF(Lambda_L_array, 1.0)
+
+        # Initialize the model: GPR or SVGP
+        if model == 'GPR':
+            gp_model = gpflow.models.GPR(
+                (X_train, Y_train),
+                kernel=kernel,
+            )
+            opt = gpflow.optimizers.Scipy()
+            reg = model_params['reg']
+            if reg > 0:
+                # Lambda RBF kernel + GPR model
+                def regularized_training_loss():
+                    return -(gp_model.log_marginal_likelihood() + gp_model.log_prior_density()) + reg * tf.norm(gp_model.kernel.get_Lambda(), ord=1)
+                opt.minimize(regularized_training_loss, gp_model.trainable_variables)
+            else:
+                # RBF kernel + GPR model
+                opt.minimize(gp_model.training_loss, gp_model.trainable_variables)
+            
+        elif model == 'SVGP':
+            num_inducing = model_params['num_inducing']
+            lik = model_params['likelihood']
+            Z = X_train[:num_inducing, :].copy()
+            maxiter = model_params['max_iter']
+            minibatch_size = model_params['minibatch_size']
+            model = gpflow.models.SVGP(kernel, lik, Z, num_data=num_inducing)
+            train_dataset = tf.data.Dataset.from_tensor_slices((X_train, Y_train)).repeat().shuffle(X_train.shape[0])
+            logf = run_adam(model, train_dataset, minibatch_size, maxiter)
+
+        # Measure performances
+        train_rmse_stan, test_rmse_stan = measure_rmse(gp_model, X_train, Y_train, X_test, Y_test)
+        train_mnll, test_mnll = measure_mnll(gp_model, X_train, Y_train, Y_train_std, X_test, Y_test)
+        results['train_rmse'].append(train_rmse_stan)
+        results['test_rmse'].append(test_rmse_stan)
+        results['train_mnll'].append(train_mnll)
+        results['test_mnll'].append(test_mnll)
+
+
+    results['avg_train_rmse'] = np.mean(results['train_rmse'])
+    results['avg_test_rmse'] = np.mean(results['test_rmse'])
+    results['avg_train_mnll'] = np.mean(results['train_mnll'])
+    results['avg_test_mnll'] = np.mean(results['test_mnll'])
+    if iprint:
+        print('-- Model: %s; Kernel: %s; --'%(model, kernel))
+        print('Average test RMSE: %5.3f\nAverage test MNLL: %5.3f\n'%(results['avg_test_rmse'], results['avg_test_mnll']))
+    return results
