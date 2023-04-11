@@ -33,7 +33,7 @@ def plot_matrix(M=None, cmap='vlag', annot=True, correlation=False):
         min = np.min(M)
         max = np.max(M)
         center = (min+max)/2
-        sns.heatmap(M, annot=annot, cmap=cmap, vmax=max, vmin=0, center=0, linewidth=.5)
+        sns.heatmap(M, annot=annot, cmap=cmap, vmax=max, vmin=-max, center=0, linewidth=.5)
 
 def compare_matrix(M1, M2, cmap='vlag'):
     fig, axes = plt.subplots(1, 2, figsize=(24,6))
