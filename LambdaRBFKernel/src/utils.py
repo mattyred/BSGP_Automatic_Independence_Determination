@@ -10,8 +10,9 @@ from sklearn.model_selection import KFold
 from scipy.stats import norm
 from scipy.special import logsumexp
 import tensorflow_probability as tfp
-from LambdaRBF import LambdaRBF
+from src.models.kernels import LambdaRBF
 import gpflow # 2.7.0
+from src.models.models import GPRLasso
 plt.rcParams["figure.figsize"] = (12, 6)
 plt.style.use("ggplot")
 
@@ -102,65 +103,6 @@ def measure_mnll(model, X_train, Y_train, Ystd, X_test, Y_test):
     test_mnll = -norm.logpdf(Y_test*Ystd, mean_test*Ystd, np.sqrt(var_test)*Ystd).mean()
     return train_mnll, test_mnll
 
-def train_GPR_LRBF_model(X_train=None, Y_train=None, reg=-1, prior=None, iprint=True):
-    D = X_train.shape[1]
-    # Define the kernel 
-    lengthscales = tf.constant([D**0.5]*D, dtype=tf.float64)
-    Lambda_L = get_lower_triangular_from_diag(lengthscales)
-    Lambda_L_array = tfp.math.fill_triangular_inverse(Lambda_L)
-    LRBF = LambdaRBF(Lambda_L_array, 1.0)
-    if prior is not None:
-        LRBF.Lambda_L.prior = prior['Lambda_L_prior']
-        LRBF.variance.prior = prior['variance_prior']
-    # GPR model (no approx)
-    model = gpflow.models.GPR(
-        (X_train, Y_train),
-        kernel=LRBF,
-    )
-    gpflow.utilities.print_summary(model, fmt="notebook")
-    if iprint:
-        print('--- Initial values ---')
-        print('Variance: %.3f'%(LRBF.variance.numpy()))
-        print('Lambda diagonal: ', tf.linalg.diag_part(LRBF.get_Lambda()).numpy())
-    opt = gpflow.optimizers.Scipy()
-    if reg > 0:
-        def regularized_training_loss():
-            return -(model.log_marginal_likelihood() + model.log_prior_density()) + reg * tf.norm(model.kernel.get_Lambda(), ord=1)
-        opt.minimize(regularized_training_loss, model.trainable_variables)
-    else:
-        opt.minimize(model.training_loss, model.trainable_variables)
-    if iprint:
-        print('--- Final values ---')
-        print('Variance: %.3f'%(LRBF.variance.numpy()))
-        plot_matrix(LRBF.get_Lambda())
-    return model, LRBF.get_Lambda()
-
-def train_GPR_RBF_model(X_train=None, Y_train=None, prior=None, iprint=True):
-    D = X_train.shape[1]
-    RBF = gpflow.kernels.SquaredExponential(variance=1, lengthscales=(D**0.5)*np.ones(D))
-    if prior is not None:
-        RBF.lengthscales.prior = prior['lengthscales_prior']
-        RBF.variance.prior = prior['variance_prior']
-    model = gpflow.models.GPR(
-        (X_train, Y_train),
-        kernel=RBF,
-    )
-    gpflow.utilities.print_summary(model, fmt="notebook")
-    if iprint:
-        print('--- Initial values ---')
-        print('Variance: %.3f'%(RBF.variance.numpy()))
-        print('Lengthscales: ', RBF.lengthscales.numpy())
-    opt = gpflow.optimizers.Scipy()
-    opt.minimize(model.training_loss, model.trainable_variables)
-    if iprint:
-        print('--- Final values ---')
-        print('Variance: %.3f'%(RBF.variance.numpy()))
-        print('Lengthscales: ', RBF.lengthscales.numpy())
-    Lambda_L_RBF = get_lower_triangular_from_diag(RBF.lengthscales.numpy())
-    Lambda_RBF = tf.matmul(Lambda_L_RBF, tf.transpose(Lambda_L_RBF))
-    plot_matrix(Lambda_RBF)
-    return model, Lambda_L_RBF
-
 def run_adam(model, train_dataset, minibatch_size, iterations):
     """
     Utility function running the Adam optimizer
@@ -209,27 +151,12 @@ def kfold_cv_model(model=None, X=None, Y=None, prior=None, kernel=None, k_folds=
         if kernel == 'RBF':
             kernel = gpflow.kernels.SquaredExponential(variance=1, lengthscales=(D**0.5)*np.ones(D))
         elif kernel == 'LRBF':
-            lengthscales = tf.constant([D**0.5]*D, dtype=tf.float64)
-            Lambda_L = get_lower_triangular_from_diag(lengthscales)
-            Lambda_L_array = tfp.math.fill_triangular_inverse(Lambda_L)
-            kernel = LambdaRBF(Lambda_L_array, 1.0)
+            kernel = LambdaRBF(variance=1.0, randomized=False, d=D)
 
         # Initialize the model: GPR or SVGP
-        if model == 'GPR':
-            gp_model = gpflow.models.GPR(
-                (X_train, Y_train),
-                kernel=kernel,
-            )
-            opt = gpflow.optimizers.Scipy()
-            reg = model_params['reg']
-            if reg > 0:
-                # Lambda RBF kernel + GPR model
-                def regularized_training_loss():
-                    return -(gp_model.log_marginal_likelihood() + gp_model.log_prior_density()) + reg * tf.norm(gp_model.kernel.get_Lambda(), ord=1)
-                opt.minimize(regularized_training_loss, gp_model.trainable_variables)
-            else:
-                # RBF kernel + GPR model
-                opt.minimize(gp_model.training_loss, gp_model.trainable_variables)
+        if model == 'GPR-Lasso':
+            gpr_lasso = GPRLasso(data=(X_train, Y_train), kernel=kernel, lasso=model_params['lasso'])
+            gpr_lasso.train()
             
         elif model == 'SVGP':
             num_inducing = model_params['num_inducing']
@@ -242,8 +169,8 @@ def kfold_cv_model(model=None, X=None, Y=None, prior=None, kernel=None, k_folds=
             logf = run_adam(model, train_dataset, minibatch_size, maxiter)
 
         # Measure performances
-        train_rmse_stan, test_rmse_stan = measure_rmse(gp_model, X_train, Y_train, X_test, Y_test)
-        train_mnll, test_mnll = measure_mnll(gp_model, X_train, Y_train, Y_train_std, X_test, Y_test)
+        train_rmse_stan, test_rmse_stan = measure_rmse(gpr_lasso, X_train, Y_train, X_test, Y_test)
+        train_mnll, test_mnll = measure_mnll(gpr_lasso, X_train, Y_train, Y_train_std, X_test, Y_test)
         results['train_rmse'].append(train_rmse_stan)
         results['test_rmse'].append(test_rmse_stan)
         results['train_mnll'].append(train_mnll)
