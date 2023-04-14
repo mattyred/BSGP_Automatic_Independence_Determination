@@ -3,7 +3,7 @@ from scipy.stats import norm
 from scipy.special import logsumexp
 from sklearn.metrics import mean_squared_error
 import gpflow
-from src.models.kernels import LambdaRBF
+from src.models.kernels import LambdaRBF, ARD_gpflow
 from src.models.models import GPRLasso
 import tensorflow as tf
 
@@ -82,8 +82,8 @@ def kfold_cv_model(model=None, X=None, Y=None, prior=None, kernel=None, k_folds=
         Y_test = (Y_test - Y_train_mean) / Y_train_std
 
         # Define the kernel: RBF(standard) or Lambda RBF
-        if kernel == 'RBF':
-            kernel = gpflow.kernels.SquaredExponential(variance=1, lengthscales=(D**0.5)*np.ones(D))
+        if kernel == 'RBF-ARD':
+            kernel = ARD_gpflow(variance=1.0, randomized=False, d=D)
         elif kernel == 'LRBF':
             kernel = LambdaRBF(variance=1.0, randomized=False, d=D)
 

@@ -1,0 +1,41 @@
+{
+    "os": "macOS-10.16-x86_64-i386-64bit",
+    "python": "3.8.16",
+    "heartbeatAt": "2023-04-14T14:07:44.020916",
+    "startedAt": "2023-04-14T14:07:43.096954",
+    "docker": null,
+    "cuda": null,
+    "args": null,
+    "state": "running",
+    "program": "<python with no main file>",
+    "git": {
+        "remote": "git@github.com:mattyred/Sparse-Gaussian-Processes-Revisited.git",
+        "commit": "7fced94adadf6b8e3770974c6a67b071932feb07"
+    },
+    "email": "s294711@studenti.polito.it",
+    "root": "/Users/mattiarosso/Desktop/Eurecom/SemesterProject/Repository/Sparse-Gaussian-Processes-Revisited",
+    "host": "MacBook-Air-di-Mattia.local",
+    "username": "mattiarosso",
+    "executable": "/Users/mattiarosso/opt/anaconda3/envs/sproj/bin/python",
+    "cpu_count": 2,
+    "cpu_count_logical": 4,
+    "cpu_freq": {
+        "current": 1600,
+        "min": 1600,
+        "max": 1600
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 1600,
+            "min": 1600,
+            "max": 1600
+        }
+    ],
+    "disk": {
+        "total": 233.46913528442383,
+        "used": 227.69648361206055
+    },
+    "memory": {
+        "total": 8.0
+    }
+}
