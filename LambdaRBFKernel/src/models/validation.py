@@ -4,7 +4,7 @@ from scipy.special import logsumexp
 from sklearn.metrics import mean_squared_error
 import gpflow
 from src.models.kernels import LambdaRBF, ARD_gpflow
-from src.models.models import GPRLasso
+from src.models.models import GPRLasso, SVGPLasso
 import tensorflow as tf
 
 def measure_mnll(model, X_train, Y_train, Ystd, X_test, Y_test):
@@ -89,28 +89,26 @@ def kfold_cv_model(model=None, X=None, Y=None, prior=None, kernel=None, k_folds=
 
         # Initialize the model: GPR or SVGP
         if model == 'GPR-Lasso':
-            gpr_lasso = GPRLasso(data=(X_train, Y_train), kernel=kernel, lasso=model_params['lasso'])
-            gpr_lasso.train()
+            gp_model = GPRLasso(data=(X_train, Y_train), kernel=kernel, lasso=model_params['lasso'])
+            gp_model.train()
             
-        elif model == 'SVGP':
+        elif model == 'SVGP-Lasso':
             num_inducing = model_params['num_inducing']
-            lik = model_params['likelihood']
-            Z = X_train[:num_inducing, :].copy()
-            maxiter = model_params['max_iter']
+            likelihood = model_params['likelihood']
+            max_iter = model_params['max_iter']
             minibatch_size = model_params['minibatch_size']
-            model = gpflow.models.SVGP(kernel, lik, Z, num_data=num_inducing)
-            train_dataset = tf.data.Dataset.from_tensor_slices((X_train, Y_train)).repeat().shuffle(X_train.shape[0])
-            logf = run_adam(model, train_dataset, minibatch_size, maxiter)
+            gp_model = SVGPLasso(data=(X_train, Y_train), kernel=kernel, lasso=model_params['lasso'], num_inducing=num_inducing, likelihood=likelihood, max_iter=max_iter, minibatch_size=minibatch_size)
+            gp_model.train()
 
         # Measure performances
-        train_rmse_stan, test_rmse_stan = measure_rmse(gpr_lasso, X_train, Y_train, X_test, Y_test)
-        train_mnll, test_mnll = measure_mnll(gpr_lasso, X_train, Y_train, Y_train_std, X_test, Y_test)
+        train_rmse_stan, test_rmse_stan = measure_rmse(gp_model, X_train, Y_train, X_test, Y_test)
+        train_mnll, test_mnll = measure_mnll(gp_model, X_train, Y_train, Y_train_std, X_test, Y_test)
         results['train_rmse'].append(train_rmse_stan)
         results['test_rmse'].append(test_rmse_stan)
         results['train_mnll'].append(train_mnll)
         results['test_mnll'].append(test_mnll)
-        results['Lambda'].append(gpr_lasso.kernel.precision())
-        results['sparsity_degree'].append(sparsity_degree(gpr_lasso.kernel.precision(), tol=model_params['tol_sparsity']))
+        results['Lambda'].append(gp_model.kernel.precision())
+        results['sparsity_degree'].append(sparsity_degree(gp_model.kernel.precision(), tol=model_params['tol_sparsity']))
 
 
     results['avg_train_rmse'] = np.mean(results['train_rmse'])

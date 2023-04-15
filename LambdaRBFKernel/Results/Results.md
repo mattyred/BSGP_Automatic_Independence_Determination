@@ -10,6 +10,8 @@
 
 ## Yacht dataset
 
+### GPR model
+
 |     $l$, $\sigma_f^2$     | $\sigma_f^2$ | Lasso | LRBF-RMSE-kfold | LRBF-MNLL-kfold | ARD-RMSE-kfold | ARD-MNLL-kfold |
 | :-----------------------: | :----------: | :---: | :-------------: | :-------------: | :------------: | :------------: |
 | $l=\sqrt{D},\sigma_f^2=1$ |              |   0   |      0.026      |      2.108      |     0.030      |     1.501      |
@@ -17,7 +19,18 @@
 | $l=\sqrt{D},\sigma_f^2=1$ |              |   1   |      0.029      |      1.465      |     0.030      |     1.510      |
 | $l=\sqrt{D},\sigma_f^2=1$ |              |  10   |      0.034      |      2.568      |     0.035      |     2.090      |
 
+### SVGP model
+
+|     $l$, $\sigma_f^2$     | $\sigma_f^2$ | Lasso | LRBF-RMSE-kfold | LRBF-MNLL-kfold | ARD-RMSE-kfold | ARD-MNLL-kfold |
+| :-----------------------: | :----------: | :---: | :-------------: | :-------------: | :------------: | :------------: |
+| $l=\sqrt{D},\sigma_f^2=1$ |              |   0   |                 |                 |     0.050      |     1.240      |
+| $l=\sqrt{D},\sigma_f^2=1$ |              |  0.1  |                 |                 |                |                |
+| $l=\sqrt{D},\sigma_f^2=1$ |              |   1   |                 |                 |                |                |
+| $l=\sqrt{D},\sigma_f^2=1$ |              |  10   |                 |                 |                |                |
+
 ## Boston dataset
+
+### GPR model
 
 |     $l$, $\sigma_f^2$     | $\sigma_f^2$ | Lasso | LRBF-RMSE-kfold | LRBF-MNLL-kfold | ARD-RMSE-kfold | ARD-MNLL-kfold |
 | :-----------------------: | :----------: | :---: | :-------------: | :-------------: | :------------: | :------------: |
@@ -25,6 +38,15 @@
 | $l=\sqrt{D},\sigma_f^2=1$ |              |  0.1  |      0.314      |      5.325      |     0.302      |     3.484      |
 | $l=\sqrt{D},\sigma_f^2=1$ |              |   1   |      0.029      |      1.465      |     0.030      |     1.510      |
 | $l=\sqrt{D},\sigma_f^2=1$ |              |  10   |      0.034      |      2.568      |     0.035      |     2.090      |
+
+### SVGP model
+
+|     $l$, $\sigma_f^2$     | $\sigma_f^2$ | Lasso | LRBF-RMSE-kfold | LRBF-MNLL-kfold | ARD-RMSE-kfold | ARD-MNLL-kfold |
+| :-----------------------: | :----------: | :---: | :-------------: | :-------------: | :------------: | :------------: |
+| $l=\sqrt{D},\sigma_f^2=1$ |              |   0   |      0.403      |      6.909      |     0.404      |     4.092      |
+| $l=\sqrt{D},\sigma_f^2=1$ |              |  0.1  |      0.402      |      7.705      |     0.406      |     4.151      |
+| $l=\sqrt{D},\sigma_f^2=1$ |              |   1   |      0.401      |                 |     0.406      |     4.056      |
+| $l=\sqrt{D},\sigma_f^2=1$ |              |  10   |                 |                 |                |                |
 
 ## Concrete dataset
 
