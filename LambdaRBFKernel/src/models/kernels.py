@@ -67,6 +67,24 @@ class LambdaRBF(gpflow.kernels.Kernel):
         Lambda = self.precision()
         return 'Variance: {}\nLambda: {}'.format(self.variance, Lambda)
     
+    def precision_dict(self, reverse=True):
+        precision = np.abs(self.precision().numpy())
+        precision_dict = []
+        d = precision.shape[0]
+        for i in range(d):
+            for j in range(d):
+                precision_dict.append({'i': i, 'j': j, 'l': precision[i][j]}) if i <= j else None
+        return sorted(precision_dict, key=lambda d: d['l'], reverse=reverse) 
+    
+    def covariance_dict(self, reverse=True):
+        covariance = np.abs(tf.linalg.inv(self.precision()).numpy())
+        covariance_dict = []
+        d = covariance.shape[0]
+        for i in range(d):
+            for j in range(d):
+                covariance_dict.append({'i': i, 'j': j, 'c': covariance[i][j]}) if i <= j else None
+        return sorted(covariance_dict, key=lambda d: d['c'], reverse=reverse) 
+    
 class ARD_gpflow(gpflow.kernels.SquaredExponential):
     def __init__(self, **kwargs):
         randomized = kwargs["randomized"]
@@ -80,3 +98,11 @@ class ARD_gpflow(gpflow.kernels.SquaredExponential):
     
     def precision(self) -> tf.Tensor:
         return tf.linalg.diag(self.lengthscales**(-2))  
+    
+    def lengthscales_dict(self, reverse=True):
+        lengthscales = self.lengthscales.numpy()
+        lengthscales_dict = []
+        d = lengthscales.shape[0]
+        for i in range(d):
+            lengthscales_dict.append({'i': i, 'j': i, 'l': lengthscales[i]})
+        return sorted(lengthscales_dict, key=lambda d: d['l'], reverse=reverse) 
