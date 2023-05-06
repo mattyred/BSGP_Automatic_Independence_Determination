@@ -6,5 +6,5 @@
     "prior_type": "normal",
     "fold": 0,
     "dataset": "boston",
-    "test_mnll": 3.3873154890959976
+    "test_mnll": 3.045805737862827
 }

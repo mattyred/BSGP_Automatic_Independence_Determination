@@ -12,7 +12,7 @@ import numpy as np
 from bsgp.models import RegressionModel
 import argparse
 import tensorflow as tf
-tf.compat.v1.disable_eager_execution()
+#tf.compat.v1.disable_eager_execution()
 import json
 from sklearn.model_selection import train_test_split
 
@@ -20,6 +20,12 @@ from torch.utils.data import  TensorDataset
 
 import torch
 from pprint import pprint
+
+import seaborn as sns
+import pandas as  pd
+import matplotlib.pyplot as plt
+import tensorflow_probability as tfp
+
 
 def next_path(path_pattern):
     i = 1
@@ -55,8 +61,30 @@ def create_dataset(dataset, fold):
 
     return X_train, Y_train, X_test, Y_test, Y_train_mean, Y_train_std
 
+def save_matrix(M=None, cmap='vlag', annot=True, correlation=False, path=None):
+    """
+    M: Matrix to be visualized with a color mapping
+    correlation: plot the correlation matrix of the dataset M
+    cmap: type of mapping
+    ---
+    It displays a matrix represented with a color scheme
+    """
+    if correlation:
+        index_values = ['%d'%(i) for i in range(M.shape[0])]
+        column_values = ['%d'%(i) for i in range(M.shape[1])]
+        df = pd.DataFrame(data = M, index = index_values, columns = column_values)
+        corr = df.corr()
+        sns.heatmap(corr, annot=annot, cmap=cmap)
+        plt.savefig(path)
+    else:
+        #config = tf.compat.v1.ConfigProto()
+        #config.gpu_options.allow_growth = True
+        #session = tf.compat.v1.Session(config=config)
+        max = np.max(M)
+        sns.heatmap(M, annot=annot, cmap=cmap, vmax=max, vmin=-max, center=0, linewidth=.5)
+        plt.savefig(path)
 
-def save_results(test_mll):
+def save_results(test_mll, layers_posterior_samples_L):
     results = dict()
     results['model'] = args.model
     results['num_inducing'] = args.num_inducing
@@ -66,12 +94,18 @@ def save_results(test_mll):
     results['fold'] = args.fold
     results['dataset'] = args.dataset
     results['test_mnll'] = -test_mll
-
+    #results['layers_precision_matrices'] = [tf.io.serialize_tensor(tensor).numpy().decode('utf-8') for tensor in layers_precision_matrices]
     filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
     with open(filepath + 'results.json', 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=4)
-
+    L = np.zeros_like(layers_posterior_samples_L[0])
+    n = layers_posterior_samples_L[0].shape[-1]
+    m = int(n * (n + 1) / 2 - (n - 1))
+    indices = np.tril_indices(n)
+    L[indices] = layers_posterior_samples_L[0].flatten()[:m]
+    precision = tf.linalg.matmul(L, tf.transpose(L))
+    save_matrix(precision, path=filepath)
 
 def main():
     set_seed(0)
@@ -91,8 +125,7 @@ def main():
     model.fit(X_train, Y_train, epsilon=args.step_size)
 
     test_mll = model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
-
-    save_results(test_mll,)
+    save_results(test_mll, model.layers_posterior_samples_L) #LRBF-MOD
 
 
 if __name__ == '__main__':

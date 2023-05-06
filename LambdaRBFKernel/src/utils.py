@@ -28,19 +28,17 @@ def plot_matrix(M=None, cmap='vlag', annot=True, correlation=False):
         center = (min+max)/2
         sns.heatmap(M, annot=annot, cmap=cmap, vmax=max, vmin=-max, center=0, linewidth=.5)
 
-def compare_matrix(M1, M2, cmap='vlag'):
+def compare_matrix(M1, M2, cmap='vlag', titles=['LambdaRBF', 'ARD']):
     fig, axes = plt.subplots(1, 2, figsize=(24,6))
     min = np.min(M1)
     max = np.max(M1)
-    center = (min+max)/2
-    sns.heatmap(M1, ax=axes[0], annot=True, cmap=cmap, vmax=max, vmin=min, center=center, linewidth=.5)
-    axes[0].set_title('LambdaRBF')
+    sns.heatmap(M1, ax=axes[0], annot=True, cmap=cmap, vmax=max, vmin=-max, center=0, linewidth=.5)
+    axes[0].set_title(titles[0])
 
     min = np.min(M2)
     max = np.max(M2)
-    center = (min+max)/2
-    sns.heatmap(M2, ax=axes[1], annot=True, cmap=cmap, vmax=max, vmin=min, center=center, linewidth=.5)
-    axes[1].set_title('ARD')
+    sns.heatmap(M2, ax=axes[1], annot=True, cmap=cmap, vmax=max, vmin=-max, center=0, linewidth=.5)
+    axes[1].set_title(titles[1])
     plt.show()
 
 def plot_matrix_cv(lambdas=None, cmap='vlag', annot=False, k=8, info={'dataset':None, 'lasso':0}):

@@ -10,14 +10,17 @@ import tensorflow as tf
 def measure_mnll(model, X_train, Y_train, Ystd, X_test, Y_test):
     mean_train, var_train = model.predict_f(X_train)
     mean_test, var_test = model.predict_f(X_test)
+    """
     logps_train = norm.logpdf(np.repeat(Y_train[None, :, :]*Ystd, X_train.shape[0], axis=0), mean_train*Ystd, np.sqrt(var_train)*Ystd)
     train_mnll = -np.mean(logsumexp(logps_train, axis=0) - np.log(X_train.shape[0]))
 
     mean_test, var_test = model.predict_f(X_test)
     logps_test = norm.logpdf(np.repeat(Y_test[None, :, :]*Ystd, X_test.shape[0], axis=0), mean_test*Ystd, np.sqrt(var_test)*Ystd)
     test_mnll = -np.mean(logsumexp(logps_test, axis=0) - np.log(X_test.shape[0]))
-    #train_mnll = -norm.logpdf(Y_train*Ystd, mean_train*Ystd, np.sqrt(var_train)*Ystd).mean()
-    #test_mnll = -norm.logpdf(Y_test*Ystd, mean_test*Ystd, np.sqrt(var_test)*Ystd).mean()
+    """
+    # precise_gp log_lik computation
+    train_mnll = -np.average(norm.logpdf(Y_train*Ystd, loc=mean_train*Ystd, scale=np.sqrt(var_train)*Ystd))
+    test_mnll = -np.average(norm.logpdf(Y_test*Ystd, loc=mean_test*Ystd, scale=np.sqrt(var_test)*Ystd))
     return train_mnll, test_mnll
 
 def measure_rmse(model, X_train, Y_train, X_test, Y_test):
@@ -71,7 +74,8 @@ def kfold_cv_model(model=None, X=None, Y=None, prior=None, kernel=None, k_folds=
                 'avg_train_mnll': 0.,
                 'avg_test_mnll': 0.,}
     D = X.shape[1]
-    for _ , (train_index, test_index) in enumerate(k_folds.split(X)):
+    for k , (train_index, test_index) in enumerate(k_folds.split(X)):
+        print('KFold - fold %d'%(k))
         # Define X_train, Y_train, X_test, Y_test for fold i
         X_train = X[train_index,:]
         X_test = X[test_index,:]

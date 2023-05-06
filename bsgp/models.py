@@ -4,6 +4,7 @@ from .dgp_model import DGP
 from scipy.stats import norm
 from scipy.special import logsumexp
 from .kernels import SquaredExponential as BgpSE
+from .kernels import FullPrecisionRBF as BgpFullRBF
 from .likelihoods import Gaussian
 import tensorflow as tf
 
@@ -29,6 +30,7 @@ class Model(object):
         self.model = None
         self.output_dim = output_dim
         self.global_step = 0
+        self.layers_precision_matrices = [] # LRBF-MOD
         if prior_type in PRIORS:
             self.ARGS.prior_type = prior_type
         else:
@@ -42,7 +44,8 @@ class Model(object):
         if not self.model:
             for i in range(self.ARGS.n_layers):
                 output_dim = 196 if i >= 1 and X.shape[1] > 700 else X.shape[1]
-                kerns.append(BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5))
+                # kerns.append(BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)) # LRBF-MOD
+                kerns.append(BgpFullRBF(variance=1.0, randomized=False, d=output_dim))
 
             mb_size = self.ARGS.minibatch_size if X.shape[0] > self.ARGS.minibatch_size else X.shape[0]
 
@@ -77,6 +80,7 @@ class Model(object):
                         print('TEST  | iter = %6d       MNLL = %5.2f' % (_, mnll))
 
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)
+            self.layers_posterior_samples_L = [np.array(list(self.model.posterior_samples[i].values())[-2]) for i in range(len(kerns))] # LRBF-MOD 
 
         except KeyboardInterrupt:  # pragma: no cover
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)
@@ -91,7 +95,6 @@ class Model(object):
             vs.append(v)
 
         return np.concatenate(ms, 1), np.concatenate(vs, 1) 
-
 
 class RegressionModel(Model):
     def __init__(self, prior_type, output_dim=None):

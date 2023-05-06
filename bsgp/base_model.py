@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-
+tf.compat.v1.disable_eager_execution()
 class BaseModel(object):
     def __init__(self, X, Y, vars, minibatch_size, window_size):
         self.X_placeholder = tf.compat.v1.placeholder(tf.float64, shape=[None, X.shape[1]])

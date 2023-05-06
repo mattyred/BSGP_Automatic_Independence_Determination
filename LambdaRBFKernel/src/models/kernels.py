@@ -76,6 +76,35 @@ class LambdaRBF(gpflow.kernels.Kernel):
                 precision_dict.append({'i': i, 'j': j, 'l': precision[i][j]}) if i <= j else None
         return sorted(precision_dict, key=lambda d: d['l'], reverse=reverse) 
     
+    def K_Lambda(self, X, Lambda, X2=None):
+        """
+            X: matrix NxD
+            X2: matrix NxD
+            ---
+            Returns Kernel matrix as a 2D tensor
+        """
+        if X2 is None:
+            X2 = X
+        N1 = tf.squeeze(tf.shape(X)[:-1])
+        N2 = tf.squeeze(tf.shape(X2)[:-1])
+
+        # compute z, z2
+        z = self._z(X, Lambda) # N1x1 array
+        z2 = self._z(X2, Lambda) # N2x1 array
+        # compute X(X2Λ)ᵀ
+        X2Lambda = tf.linalg.matmul(X2, Lambda)
+        XX2LambdaT = tf.linalg.matmul(X, tf.transpose(X2Lambda)) # N1xN2 matrix
+        # compute z1ᵀ 
+        ones_N2 = tf.ones(shape=(N2,1), dtype=tf.float64) # N2x1 array
+        zcol = tf.linalg.matmul(z, tf.transpose(ones_N2)) # N1xN2 matrix
+        # compute 1z2ᵀ 
+        ones_N1 = tf.ones(shape=(N1,1), dtype=tf.float64) # N1x1 array
+        zrow = tf.linalg.matmul(ones_N1, tf.transpose(z2)) # N1xN2 matrix
+
+        exp_arg = zcol - 2*XX2LambdaT + zrow
+        Kxx = tf.math.exp(-0.5 * exp_arg)
+        return self.variance * Kxx
+    
     def covariance_dict(self, reverse=True):
         covariance = np.abs(tf.linalg.inv(self.precision()).numpy())
         covariance_dict = []
@@ -91,7 +120,7 @@ class ARD_gpflow(gpflow.kernels.SquaredExponential):
         d = kwargs["d"]
         variance = kwargs["variance"]
         if not randomized:
-            lengthscales = lengthscales = tf.constant([d**0.5]*d, dtype=tf.float64)
+            lengthscales = tf.constant([d**0.5]*d, dtype=tf.float64)
         else:
             lengthscales = np.random.uniform(0.5,3,d)      
         super().__init__(variance, lengthscales)

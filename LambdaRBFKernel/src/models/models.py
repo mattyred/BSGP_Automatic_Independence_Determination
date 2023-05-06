@@ -44,13 +44,14 @@ class SVGPLasso(gpflow.models.SVGP):
     def __init__(self, **kwargs):
         self.data = kwargs["data"]
         self.kernel = kwargs["kernel"]
-        self.num_inducing = kwargs["num_inducing"]
+        self.num_inducing = kwargs["num_inducing"] # M
         self.max_iter = kwargs["max_iter"]
         self.minibatch_size = kwargs["minibatch_size"]
         self.likelihood = kwargs["likelihood"]
 
         Z = self.data[0][:self.num_inducing, :].copy()
-        super(SVGPLasso, self).__init__(self.kernel, self.likelihood, Z, num_data=self.num_inducing)
+        N = self.data[0].shape[0]
+        super(SVGPLasso, self).__init__(self.kernel, self.likelihood, Z, num_data=N)
         self.train_dataset = tf.data.Dataset.from_tensor_slices((self.data[0], self.data[1])).repeat().shuffle(self.data[0].shape[0])
 
         self.lasso = 0 if "lasso" not in kwargs else kwargs["lasso"]
@@ -67,6 +68,7 @@ class SVGPLasso(gpflow.models.SVGP):
         """
         Utility function running the Adam optimizer
         """
+        print('ADAM started...')
         # Create an Adam Optimizer action
         logf = []
         train_iter = iter(self.train_dataset.batch(self.minibatch_size))
@@ -79,9 +81,10 @@ class SVGPLasso(gpflow.models.SVGP):
 
         for step in range(self.max_iter):
             optimization_step()
-            if step % 10 == 0:
+            if step % 100 == 0:
                 elbo = -training_loss().numpy()
                 logf.append(elbo)
+        print('ADAM finished')
         return logf
 
     def train(self):

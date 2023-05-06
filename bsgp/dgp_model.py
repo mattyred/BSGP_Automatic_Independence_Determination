@@ -95,7 +95,8 @@ class Layer(object):
             raise Exception("Invalid prior type")
 
     def prior_hyper(self):
-        return -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
+        # return -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0 LRBF-MOD
+        return -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
 
     def prior(self):
         return -tf.reduce_sum(tf.square(self.U)) / 2.0 + self.prior_hyper()  + self.prior_Z()
@@ -160,7 +161,8 @@ class DGP(BaseModel):
 
         variables = []
         for l in self.layers:
-            variables += [l.U, l.Z, l.kernel.loglengthscales, l.kernel.logvariance]
+            # variables += [l.U, l.Z, l.kernel.loglengthscales, l.kernel.logvariance] LRBF-MOD
+            variables += [l.U, l.Z, l.kernel.L, l.kernel.logvariance] 
 
         super().__init__(X, Y, variables, minibatch_size, window_size)
         self.f, self.fmeans, self.fvars = self.propagate(self.X_placeholder)
