@@ -25,12 +25,12 @@ class Model(object):
             n_layers = 1
             prior_type = None
             logdir = '/tmp/'
+            precise_kernel = False # LRBF-MOD
 
         self.ARGS = ARGS
         self.model = None
         self.output_dim = output_dim
         self.global_step = 0
-        self.layers_precision_matrices = [] # LRBF-MOD
         if prior_type in PRIORS:
             self.ARGS.prior_type = prior_type
         else:
@@ -45,11 +45,12 @@ class Model(object):
             for i in range(self.ARGS.n_layers):
                 output_dim = 196 if i >= 1 and X.shape[1] > 700 else X.shape[1]
                 # kerns.append(BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)) # LRBF-MOD
-                kerns.append(BgpFullRBF(variance=1.0, randomized=False, d=output_dim))
+                kernel = BgpFullRBF(variance=1.0, randomized=False, d=output_dim) if self.ARGS.precise_kernel else BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)
+                kerns.append(kernel)
 
             mb_size = self.ARGS.minibatch_size if X.shape[0] > self.ARGS.minibatch_size else X.shape[0]
 
-            self.model = DGP(X, Y, self.ARGS.num_inducing, kerns, lik,
+            self.model = DGP(X, Y, self.ARGS.num_inducing, kerns, self.ARGS.precise_kernel, lik,
                              minibatch_size=mb_size,
                              window_size=self.ARGS.window_size,
                              full_cov=self.ARGS.full_cov,
@@ -80,7 +81,7 @@ class Model(object):
                         print('TEST  | iter = %6d       MNLL = %5.2f' % (_, mnll))
 
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)
-            self.posterior_samples_L = [list(self.model.posterior_samples[i].values())[-2].tolist() for i in range(self.ARGS.num_posterior_samples)] # LRBF-MOD 
+            self.posterior_samples_precision = [list(self.model.posterior_samples[i].values())[-2].tolist() for i in range(self.ARGS.num_posterior_samples)] # LRBF-MOD 
 
         except KeyboardInterrupt:  # pragma: no cover
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)

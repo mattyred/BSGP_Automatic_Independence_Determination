@@ -12,7 +12,7 @@ import numpy as np
 from bsgp.models import RegressionModel
 import argparse
 import tensorflow as tf
-#tf.compat.v1.disable_eager_execution()
+tf.compat.v1.disable_eager_execution()
 import json
 from sklearn.model_selection import train_test_split
 
@@ -61,7 +61,7 @@ def create_dataset(dataset, fold):
 
     return X_train, Y_train, X_test, Y_test, Y_train_mean, Y_train_std
 
-def save_results(test_mll, posterior_samples_L):
+def save_results(test_mll, posterior_samples_precision):
     results = dict()
     results['model'] = args.model
     results['num_inducing'] = args.num_inducing
@@ -71,10 +71,11 @@ def save_results(test_mll, posterior_samples_L):
     results['fold'] = args.fold
     results['dataset'] = args.dataset
     results['test_mnll'] = -test_mll
-    results['posterior_samples_L'] = posterior_samples_L
+    results['precise_kernel'] = bool(args.precise_kernel)
 
     filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
+    results['posterior_samples_precision'] = posterior_samples_precision
     with open(filepath + 'results.json', 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=4)
 
@@ -92,11 +93,12 @@ def main():
     model.ARGS.prior_type = args.prior_type
     model.ARGS.full_cov = False
     model.ARGS.posterior_sample_spacing = 32
+    model.ARGS.precise_kernel = bool(args.precise_kernel) # LRBF-MOD
     logger.info('Number of inducing points: %d' % model.ARGS.num_inducing)
     model.fit(X_train, Y_train, epsilon=args.step_size)
 
     test_mll = model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
-    save_results(test_mll, model.posterior_samples_L) #LRBF-MOD
+    save_results(test_mll, model.posterior_samples_precision) #LRBF-MOD
 
 
 if __name__ == '__main__':
@@ -111,7 +113,7 @@ if __name__ == '__main__':
     parser.add_argument('--model', choices=['bsgp'], default='bsgp')
     parser.add_argument('--num_posterior_samples', type=int, default=512)
     parser.add_argument('--step_size', type=float, default=0.01)
-    
+    parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF)
     
     args = parser.parse_args()
 

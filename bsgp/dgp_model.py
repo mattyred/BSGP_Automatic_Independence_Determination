@@ -41,12 +41,13 @@ class Strauss(object):
 
 
 class Layer(object):
-    def __init__(self, kern, outputs, n_inducing, fixed_mean, X, full_cov, prior_type="uniform"): # uniform / normal / point
+    def __init__(self, kern, precise_kernel, outputs, n_inducing, fixed_mean, X, full_cov, prior_type="uniform"): # uniform / normal / point
         self.inputs, self.outputs, self.kernel = kern.input_dim, outputs, kern
         self.M, self.fixed_mean = n_inducing, fixed_mean
         self.full_cov = full_cov
         self.prior_type = prior_type
         self.X = X
+        self.precise_kernel = precise_kernel # LRBF-MOD
         if prior_type == "strauss":
             self.pZ = Strauss(R=0.5)
 
@@ -95,8 +96,9 @@ class Layer(object):
             raise Exception("Invalid prior type")
 
     def prior_hyper(self):
+        prior_hyper = -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0 if self.precise_kernel else -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
         # return -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0 LRBF-MOD
-        return -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
+        return prior_hyper
 
     def prior(self):
         return -tf.reduce_sum(tf.square(self.U)) / 2.0 + self.prior_hyper()  + self.prior_Z()
@@ -138,7 +140,7 @@ class DGP(BaseModel):
         for layer in self.layers:
             layer.Lm = None
 
-    def __init__(self, X, Y, n_inducing, kernels, likelihood, minibatch_size, window_size, output_dim=None,
+    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None,
                  adam_lr=0.01, prior_type="uniform", full_cov=False, epsilon=0.01, mdecay=0.05,):
         self.n_inducing = n_inducing
         self.kernels = kernels
@@ -156,13 +158,13 @@ class DGP(BaseModel):
         X_running = X.copy()
         for l in range(n_layers):
             outputs = self.kernels[l+1].input_dim if l+1 < n_layers else self.output_dim#Y.shape[1]
-            self.layers.append(Layer(self.kernels[l], outputs, n_inducing, fixed_mean=(l+1 < n_layers), X=X_running, full_cov=full_cov if l+1<n_layers else False, prior_type=prior_type))
+            self.layers.append(Layer(self.kernels[l], precise_kernel, outputs, n_inducing, fixed_mean=(l+1 < n_layers), X=X_running, full_cov=full_cov if l+1<n_layers else False, prior_type=prior_type))
             X_running = np.matmul(X_running, self.layers[-1].mean)
 
         variables = []
         for l in self.layers:
             # variables += [l.U, l.Z, l.kernel.loglengthscales, l.kernel.logvariance] LRBF-MOD
-            variables += [l.U, l.Z, l.kernel.L, l.kernel.logvariance] 
+            variables += [l.U, l.Z, l.kernel.L if precise_kernel else l.kernel.loglengthscales, l.kernel.logvariance]
 
         super().__init__(X, Y, variables, minibatch_size, window_size)
         self.f, self.fmeans, self.fvars = self.propagate(self.X_placeholder)
