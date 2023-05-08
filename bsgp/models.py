@@ -80,7 +80,7 @@ class Model(object):
                         print('TEST  | iter = %6d       MNLL = %5.2f' % (_, mnll))
 
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)
-            self.layers_posterior_samples_L = [np.array(list(self.model.posterior_samples[i].values())[-2]) for i in range(len(kerns))] # LRBF-MOD 
+            self.posterior_samples_L = [list(self.model.posterior_samples[i].values())[-2].tolist() for i in range(self.ARGS.num_posterior_samples)] # LRBF-MOD 
 
         except KeyboardInterrupt:  # pragma: no cover
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)
