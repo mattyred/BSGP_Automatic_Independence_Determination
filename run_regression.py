@@ -125,7 +125,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_posterior_samples', type=int, default=512)
     parser.add_argument('--step_size', type=float, default=0.01)
     parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF, 2: BOTH)
-    
+    parser.add_argument('--kfold', type=int, default=-1) # Number of folds for k-fold cv
+
     args = parser.parse_args()
 
     if args.model == 'bsgp':
