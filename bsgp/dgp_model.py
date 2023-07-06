@@ -96,7 +96,11 @@ class Layer(object):
             raise Exception("Invalid prior type")
 
     def prior_hyper(self):
-        prior_hyper = -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0 if self.precise_kernel else -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
+        if self.precise_kernel:
+            prior_hyper = -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
+        else:
+            prior_hyper = -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
+
         # return -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0 LRBF-MOD
         return prior_hyper
 
@@ -140,8 +144,7 @@ class DGP(BaseModel):
         for layer in self.layers:
             layer.Lm = None
 
-    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None,
-                 adam_lr=0.01, prior_type="uniform", full_cov=False, epsilon=0.01, mdecay=0.05,):
+    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", full_cov=False, epsilon=0.01, mdecay=0.05,):
         self.n_inducing = n_inducing
         self.kernels = kernels
         self.likelihood = likelihood
@@ -164,7 +167,7 @@ class DGP(BaseModel):
         variables = []
         for l in self.layers:
             # variables += [l.U, l.Z, l.kernel.loglengthscales, l.kernel.logvariance] LRBF-MOD
-            variables += [l.U, l.Z, l.kernel.L if precise_kernel else l.kernel.loglengthscales, l.kernel.logvariance]
+            variables += [l.U, l.Z, l.kernel.Up if precise_kernel else l.kernel.loglengthscales, l.kernel.logvariance]
 
         super().__init__(X, Y, variables, minibatch_size, window_size)
         self.f, self.fmeans, self.fvars = self.propagate(self.X_placeholder)
@@ -193,7 +196,7 @@ class DGP(BaseModel):
         set_seed()
         init_op = tf.compat.v1.global_variables_initializer()
         try:
-            self.session.run(init_op, feed_dict=self.likelihood.initializable_feeds )
+            self.session.run(init_op, feed_dict=self.likelihood.initializable_feeds)
         except AttributeError:
             self.session.run(init_op)
 

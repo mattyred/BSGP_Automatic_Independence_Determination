@@ -82,7 +82,7 @@ class Model(object):
 
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)
             self.posterior_samples_kerncov = [list(self.model.posterior_samples[i].values())[-2].tolist() for i in range(self.ARGS.num_posterior_samples)] # LRBF-MOD
-            self.posterior_samples_kerlogvar = [list(self.model.posterior_samples[i].values())[-1].tolist() for i in range(self.ARGS.num_posterior_samples)] # LRBF-MOD
+            self.posterior_samples_kernlogvar = [list(self.model.posterior_samples[i].values())[-1].tolist() for i in range(self.ARGS.num_posterior_samples)] # LRBF-MOD
             
         except KeyboardInterrupt:  # pragma: no cover
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)

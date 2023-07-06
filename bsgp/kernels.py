@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 import numpy as np
-from .utils import get_lower_triangular_from_diag, get_lower_triangular_uniform_random
+from .utils import get_upper_triangular_from_diag, get_upper_triangular_uniform_random
 import tensorflow_probability as tfp
 
 class Kernel(object):
@@ -255,11 +255,11 @@ class FullPrecisionRBF(Kernel):
         d = kwargs["d"]
         self._v = kwargs["variance"]
         if not randomized:
-            L = get_lower_triangular_from_diag(d)
+            Up = get_upper_triangular_from_diag(d)
         else:
-            L = get_lower_triangular_uniform_random(d)
+            Up = get_upper_triangular_uniform_random(d)
         super().__init__(input_dim=d)
-        self.L = tf.Variable(L, name='L', dtype=tf.float64)
+        self.Up = tf.Variable(Up, name='Up', dtype=tf.float64)
         self.logvariance = tf.Variable(np.log(self._v), dtype=tf.float64, name='log_variance', trainable=False)
         self.variance = tf.exp(self.logvariance)
 
@@ -272,11 +272,9 @@ class FullPrecisionRBF(Kernel):
         """
         if X2 is None:
             X2 = X
-        #N1 = X.shape[0] WORKS
-        #N2 = X2.shape[0] WORKS
         N1 = tf.squeeze(tf.shape(X)[:-1])
         N2 = tf.squeeze(tf.shape(X2)[:-1])
-        Lambda = self.precision() # recover LLᵀ
+        Lambda = self.precision() # recover UᵀU
 
         # compute z, z2
         z = self._z(X, Lambda) # N1x1 array
@@ -304,8 +302,8 @@ class FullPrecisionRBF(Kernel):
         return tf.math.reduce_sum(XLambdaX, axis=1, keepdims=True)
     
     def precision(self):
-        L = tfp.math.fill_triangular(self.L) # recover L matrix from L array
-        Lambda = tf.linalg.matmul(L, tf.transpose(L))
+        Up = tfp.math.fill_triangular(self.Up, upper=True) # recover U matrix from U array
+        Lambda = tf.linalg.matmul(tf.transpose(Up), Up)
         return Lambda
     
     def __str__(self):
@@ -313,7 +311,7 @@ class FullPrecisionRBF(Kernel):
         return 'Variance: {}\nLambda: {}'.format(self.variance, Lambda)
     def __str__(self):
         str = [
-            '======= Kernel: FullPrecisionRBF',
+            '======= Kernel: FullPrecisionRBF (param: UᵀU)',
             # ' Input dim = %d' % self.input_dim,
             ' Variance = %.3f' % self._v
         ]
