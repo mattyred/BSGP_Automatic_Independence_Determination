@@ -27,6 +27,7 @@ class Model(object):
             logdir = '/tmp/'
             precise_kernel = False # LRBF-MOD
             prior_precision_type = None # LRBF-MOD
+            prior_laplace_b = None # LRBF-MOD
 
         self.ARGS = ARGS
         self.model = None
@@ -57,6 +58,7 @@ class Model(object):
                              full_cov=self.ARGS.full_cov,
                              prior_type=self.ARGS.prior_type, 
                              prior_precision_type=self.ARGS.prior_precision_type,
+                             prior_laplace_b = self.ARGS.prior_laplace_b,
                              output_dim=self.output_dim,
                              **kwargs)
             print(self.model)

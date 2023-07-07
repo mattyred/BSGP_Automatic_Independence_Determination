@@ -77,11 +77,13 @@ def save_results_static(filepath, onefold_data, precise_kernel):
     results['dataset'] = args.dataset
     results['test_mnll'] = onefold_data['test_mnll']
     results['precise_kernel'] = precise_kernel
-    results['prior_precision_type'] = args.prior_precision_type
 
     #filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
     if precise_kernel:
+        results['prior_precision_type'] = args.prior_precision_type
+        if args.prior_precision_type == 'laplace':
+            results['prior_laplace_b'] = args.prior_laplace_b
         jsonfilepath = filepath + 'LRBF_results.json'
         results['posterior_samples_U_precision'] = onefold_data['trained_model'].posterior_samples_kerncov
     else:
@@ -103,13 +105,15 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     results['dataset'] = args.dataset
     #results['test_mnll'] = np.mean(results['test_mnll'])
     results['precise_kernel'] = precise_kernel
-    results['prior_precision_type'] = args.prior_precision_type
 
     #filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
 
     # Save kernel precision matrices
     if precise_kernel == 1:
+        results['prior_precision_type'] = args.prior_precision_type
+        if args.prior_precision_type == 'laplace':
+            results['prior_laplace_b'] = args.prior_laplace_b
         jsonfilepath = filepath + 'LRBF_results.json'
         results['posterior_samples_U_precision'] = []
         for i in range(args.kfold):
@@ -212,6 +216,7 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     logger.info('Number of inducing points: %d' % model.ARGS.num_inducing)
     model.ARGS.precise_kernel = precise_kernel 
     model.ARGS.prior_precision_type = args.prior_precision_type
+    model.ARGS.prior_laplace_b = args.prior_laplace_b
     model.fit(X_train, Y_train, epsilon=args.step_size)
     test_mnll = -model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
     return test_mnll, model
@@ -232,6 +237,7 @@ if __name__ == '__main__':
     parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF, 2: BOTH)
     parser.add_argument('--kfold', type=int, default=-1) # Number of folds for k-fold cv
     parser.add_argument('--prior_precision_type', choices=['laplace'], default=None) # Prior on kernel precision matrix
+    parser.add_argument('--prior_laplace_b', type=float, default=None) # b parameter of Laplace(0,b) prior on precision matrix
 
     args = parser.parse_args()
 

@@ -44,7 +44,7 @@ class Strauss(object):
 
 
 class Layer(object):
-    def __init__(self, kern, precise_kernel, outputs, n_inducing, fixed_mean, X, full_cov, prior_type="uniform", prior_precision_type="laplace"): # uniform / normal / point
+    def __init__(self, kern, precise_kernel, outputs, n_inducing, fixed_mean, X, full_cov, prior_type="uniform", prior_precision_type="laplace", prior_laplace_b=1): # uniform / normal / point
         self.inputs, self.outputs, self.kernel = kern.input_dim, outputs, kern
         self.M, self.fixed_mean = n_inducing, fixed_mean
         self.full_cov = full_cov
@@ -52,6 +52,7 @@ class Layer(object):
         self.X = X
         self.precise_kernel = precise_kernel # LRBF-MOD
         self.prior_precision_type = prior_precision_type # LRBF-MOD
+        self.prior_laplace_b = prior_laplace_b # LRBF-MOD
         self.Kc = commutation_matrix(self.X.shape[1], self.X.shape[1])
         if prior_type == "strauss":
             self.pZ = Strauss(R=0.5)
@@ -108,7 +109,7 @@ class Layer(object):
                 # Laplace(0,1) prior on the whole precision
                 _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
                 #tf.print(self.kernel.Up, output_stream=sys.stderr)
-                prior_precision = tf.reduce_sum(-tf.norm(self.kernel.precision(), ord=1)) / 2.0 + logdet
+                prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
             else:
                 # Lognormal(0,1) prior on precision's diagonal
                 precision_diagonal = tf.linalg.tensor_diag_part(self.kernel.precision())
@@ -161,7 +162,7 @@ class DGP(BaseModel):
         for layer in self.layers:
             layer.Lm = None
 
-    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='laplace', full_cov=False, epsilon=0.01, mdecay=0.05,):
+    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='laplace', prior_laplace_b=1, full_cov=False, epsilon=0.01, mdecay=0.05,):
         self.n_inducing = n_inducing
         self.kernels = kernels
         self.likelihood = likelihood
@@ -178,7 +179,7 @@ class DGP(BaseModel):
         X_running = X.copy()
         for l in range(n_layers):
             outputs = self.kernels[l+1].input_dim if l+1 < n_layers else self.output_dim#Y.shape[1]
-            self.layers.append(Layer(self.kernels[l], precise_kernel, outputs, n_inducing, fixed_mean=(l+1 < n_layers), X=X_running, full_cov=full_cov if l+1<n_layers else False, prior_type=prior_type, prior_precision_type=prior_precision_type))
+            self.layers.append(Layer(self.kernels[l], precise_kernel, outputs, n_inducing, fixed_mean=(l+1 < n_layers), X=X_running, full_cov=full_cov if l+1<n_layers else False, prior_type=prior_type, prior_precision_type=prior_precision_type, prior_laplace_b=prior_laplace_b))
             X_running = np.matmul(X_running, self.layers[-1].mean)
 
         variables = []
