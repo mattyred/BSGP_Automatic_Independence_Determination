@@ -5,6 +5,9 @@ from scipy.cluster.vq import kmeans2
 from .base_model import BaseModel
 from . import conditionals
 from .utils import get_rand
+from .utils import logdet_jacobian
+from .utils import commutation_matrix
+import sys
 
 def set_seed(seed=0):
     import random
@@ -41,13 +44,15 @@ class Strauss(object):
 
 
 class Layer(object):
-    def __init__(self, kern, precise_kernel, outputs, n_inducing, fixed_mean, X, full_cov, prior_type="uniform"): # uniform / normal / point
+    def __init__(self, kern, precise_kernel, outputs, n_inducing, fixed_mean, X, full_cov, prior_type="uniform", prior_precision_type="laplace"): # uniform / normal / point
         self.inputs, self.outputs, self.kernel = kern.input_dim, outputs, kern
         self.M, self.fixed_mean = n_inducing, fixed_mean
         self.full_cov = full_cov
         self.prior_type = prior_type
         self.X = X
         self.precise_kernel = precise_kernel # LRBF-MOD
+        self.prior_precision_type = prior_precision_type # LRBF-MOD
+        self.Kc = commutation_matrix(self.X.shape[1], self.X.shape[1])
         if prior_type == "strauss":
             self.pZ = Strauss(R=0.5)
 
@@ -94,12 +99,23 @@ class Layer(object):
 
         else: #
             raise Exception("Invalid prior type")
-
+    @tf.function
     def prior_hyper(self):
+        # Lognormal(0,0.05) prior on kernel logvariance
+        prior_kernel_logvariance =  -tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
         if self.precise_kernel:
-            prior_hyper = -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
+            if self.prior_precision_type == 'laplace':
+                # Laplace(0,1) prior on the whole precision
+                _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
+                #tf.print(self.kernel.Up, output_stream=sys.stderr)
+                prior_precision = tf.reduce_sum(-tf.norm(self.kernel.precision(), ord=1)) / 2.0 + logdet
+            else:
+                # Lognormal(0,1) prior on precision's diagonal
+                precision_diagonal = tf.linalg.tensor_diag_part(self.kernel.precision())
+                prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0
+            prior_hyper = prior_precision + prior_kernel_logvariance
         else:
-            prior_hyper = -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
+            prior_hyper = -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 + prior_kernel_logvariance
 
         # return -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0 LRBF-MOD
         return prior_hyper
@@ -114,6 +130,7 @@ class Layer(object):
             ' Output dim = %d' % self.outputs,
             ' Num inducing = %d' % self.M,
             ' Prior on inducing positions = %s' % self.prior_type,
+            ' Prior on kernel precision = %s' % self.prior_precision_type,
             '\n'.join(map(lambda s: ' |' + s, self.kernel.__str__().split('\n')))
         ]
 
@@ -144,7 +161,7 @@ class DGP(BaseModel):
         for layer in self.layers:
             layer.Lm = None
 
-    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", full_cov=False, epsilon=0.01, mdecay=0.05,):
+    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='laplace', full_cov=False, epsilon=0.01, mdecay=0.05,):
         self.n_inducing = n_inducing
         self.kernels = kernels
         self.likelihood = likelihood
@@ -161,7 +178,7 @@ class DGP(BaseModel):
         X_running = X.copy()
         for l in range(n_layers):
             outputs = self.kernels[l+1].input_dim if l+1 < n_layers else self.output_dim#Y.shape[1]
-            self.layers.append(Layer(self.kernels[l], precise_kernel, outputs, n_inducing, fixed_mean=(l+1 < n_layers), X=X_running, full_cov=full_cov if l+1<n_layers else False, prior_type=prior_type))
+            self.layers.append(Layer(self.kernels[l], precise_kernel, outputs, n_inducing, fixed_mean=(l+1 < n_layers), X=X_running, full_cov=full_cov if l+1<n_layers else False, prior_type=prior_type, prior_precision_type=prior_precision_type))
             X_running = np.matmul(X_running, self.layers[-1].mean)
 
         variables = []

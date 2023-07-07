@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np
 import scipy
+import sys
 
 def get_rand(x, full_cov=False):
     mean = x[0]
@@ -32,3 +33,24 @@ def get_upper_triangular_uniform_random(d):
     Lambda = np.transpose(full_Up) @ full_Up # Λ=UᵀU
     Up = scipy.linalg.cholesky(Lambda, lower=False)
     return tfp.math.fill_triangular_inverse(Up, upper=True) 
+
+def commutation_matrix(m, n):
+    w = np.arange(m * n).reshape((m, n), order="F").T.ravel(order="F")
+    return np.eye(m * n)[w, :]
+
+@tf.function
+def logdet_jacobian(Kc, U):
+    #tf.print({'vecU': U}, output_stream=sys.stderr)
+    U = tfp.math.fill_triangular(U, upper=True)
+    n = U.shape[0]
+    UmT = tf.linalg.LinearOperatorFullMatrix([tf.transpose(U)])
+    I = tf.linalg.LinearOperatorFullMatrix([tf.eye(n, dtype=tf.float64)])
+    kron1 = tf.squeeze(tf.linalg.LinearOperatorKronecker([UmT, I]).to_dense())
+    kron2 = tf.squeeze(tf.linalg.LinearOperatorKronecker([I, UmT]).to_dense())
+    J = tf.linalg.matmul(kron1, Kc) + kron2
+    eigs = tf.math.real(tf.linalg.eigvals(J)) 
+    #tf.print({'eigs-J': eigs[0:n*(n+1)//2]}, output_stream=sys.stderr)
+    eigs = tf.sort(eigs, direction='DESCENDING')
+    eigs_nonzero = eigs[0:n*(n+1)//2]
+    logdet = tf.reduce_sum(tf.math.log(tf.math.abs(eigs_nonzero)))
+    return eigs, eigs_nonzero, logdet

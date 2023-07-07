@@ -26,6 +26,7 @@ class Model(object):
             prior_type = None
             logdir = '/tmp/'
             precise_kernel = False # LRBF-MOD
+            prior_precision_type = None # LRBF-MOD
 
         self.ARGS = ARGS
         self.model = None
@@ -54,7 +55,9 @@ class Model(object):
                              minibatch_size=mb_size,
                              window_size=self.ARGS.window_size,
                              full_cov=self.ARGS.full_cov,
-                             prior_type=self.ARGS.prior_type, output_dim=self.output_dim,
+                             prior_type=self.ARGS.prior_type, 
+                             prior_precision_type=self.ARGS.prior_precision_type,
+                             output_dim=self.output_dim,
                              **kwargs)
             print(self.model)
 

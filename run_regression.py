@@ -77,6 +77,7 @@ def save_results_static(filepath, onefold_data, precise_kernel):
     results['dataset'] = args.dataset
     results['test_mnll'] = onefold_data['test_mnll']
     results['precise_kernel'] = precise_kernel
+    results['prior_precision_type'] = args.prior_precision_type
 
     #filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
@@ -102,6 +103,7 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     results['dataset'] = args.dataset
     #results['test_mnll'] = np.mean(results['test_mnll'])
     results['precise_kernel'] = precise_kernel
+    results['prior_precision_type'] = args.prior_precision_type
 
     #filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
@@ -209,6 +211,7 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     model.ARGS.posterior_sample_spacing = 32
     logger.info('Number of inducing points: %d' % model.ARGS.num_inducing)
     model.ARGS.precise_kernel = precise_kernel 
+    model.ARGS.prior_precision_type = args.prior_precision_type
     model.fit(X_train, Y_train, epsilon=args.step_size)
     test_mnll = -model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
     return test_mnll, model
@@ -228,6 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('--step_size', type=float, default=0.01)
     parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF, 2: BOTH)
     parser.add_argument('--kfold', type=int, default=-1) # Number of folds for k-fold cv
+    parser.add_argument('--prior_precision_type', choices=['laplace'], default=None) # Prior on kernel precision matrix
 
     args = parser.parse_args()
 
