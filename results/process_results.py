@@ -58,6 +58,21 @@ def heatmap_precision(precisions_mean, precisions_var, annot=True, fig_height=7,
     ax.set_title(r'$\Lambda_{i,j}$: mean(var) over samples')
     plt.show()
 
+def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=False, d=6):
+    results_kfold = pd.read_json(filepath)
+    merged_kfold = []
+    mean_kfold = []
+    var_kfold = []
+    kerlogvar_kfold = []
+    for k in range(kfold):
+      fold_k_path = results_kfold.loc[k].to_json()
+      merged, mean, var, kerlogvar = process_results(filepath=fold_k_path, precise_kernel=precise_kernel, invsquare=invsquare, d=d)
+      merged_kfold.append(merged)
+      mean_kfold.append(mean)
+      var_kfold.append(var)
+      kerlogvar_kfold.append(kerlogvar)
+    return merged_kfold, mean_kfold, var_kfold, kerlogvar_kfold
+
 def heatmap_ard(lengthscales_merged_mean, lengthscales_merged_var, invsquare=False, annot=True, fig_height=5, fig_width=7):
   fig, ax = plt.subplots(figsize=(fig_width, fig_height))
   d = len(lengthscales_merged_mean)
