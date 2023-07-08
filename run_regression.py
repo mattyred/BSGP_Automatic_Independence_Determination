@@ -57,7 +57,7 @@ def create_dataset(dataset, static, fold):
 
     if static == False:
         Y_mean, Y_std = Y.mean(0), Y.std(0) + 1e-9
-        Y = (Y - Y_mean) / Y_std
+        #Y = (Y - Y_mean) / Y_std
         return X, Y, Y_mean, Y_std
     else:
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.20, random_state=fold)
