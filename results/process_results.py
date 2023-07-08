@@ -5,7 +5,7 @@ import seaborn as sns
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-def process_results(filepath=None, precise_kernel=0, d=6):
+def process_results(filepath=None, precise_kernel=0, invsquare=False, d=6):
     results = pd.read_json(filepath)
     n_samples = len(results['posterior_samples_kernlogvar'])
     posterior_samples_kerlogvar = np.array(results['posterior_samples_kernlogvar'])
@@ -29,7 +29,10 @@ def process_results(filepath=None, precise_kernel=0, d=6):
         posterior_samples_loglengthscales = [np.array(results['posterior_samples_loglengthscales'][i]) for i in range(n_samples)]
         lengthscales_list = []
         for i in range(n_samples):
-            lengthscales_list.append(tf.linalg.diag(1/tf.math.exp(posterior_samples_loglengthscales[i])**2).numpy())
+            if invsquare:
+                lengthscales_list.append(tf.linalg.diag(1/tf.math.exp(posterior_samples_loglengthscales[i]**2)).numpy())
+            else:
+                lengthscales_list.append(tf.linalg.diag(tf.math.exp(posterior_samples_loglengthscales[i])).numpy())
         lengthscales_merged = np.empty((d, d), dtype=object)
         lengthscales_merged_mean = []
         lengthscales_merged_var = []
@@ -54,6 +57,26 @@ def heatmap_precision(precisions_mean, precisions_var, annot=True, fig_height=7,
             h.texts[i * d + j].set_text(text)
     ax.set_title(r'$\Lambda_{i,j}$: mean(var) over samples')
     plt.show()
+
+def heatmap_ard(lengthscales_merged_mean, lengthscales_merged_var, invsquare=False, annot=True, fig_height=5, fig_width=7):
+  fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+  d = len(lengthscales_merged_mean)
+  min, max = np.min(lengthscales_merged_mean), np.max(lengthscales_merged_mean)
+  lengthscales_merged_mean_matrix = np.diag(lengthscales_merged_mean)
+  lengthscales_merged_var_matrix = np.diag(lengthscales_merged_var)
+  h = sns.heatmap(lengthscales_merged_mean_matrix, annot=True, fmt='.3f', annot_kws={"size": 8}, cmap='vlag', vmax=max, vmin=-max, center=0, linewidth=.5, ax=ax) 
+  for i in range(d):
+    for j in range(d):
+      if i == j:
+        mean_text = f'{lengthscales_merged_mean_matrix[i, j]:.3f}'
+        variance_text = f'({lengthscales_merged_var_matrix[i, j]:.3f})'
+        text = f'{mean_text}\n' + f'{variance_text}'
+        h.texts[i * d + j].set_text(text)
+  if invsquare:
+    ax.set_title(r'$\Sigma^{-1}_{i,j}$: $\mathbf{\frac{1}{l^2}}$ mean(var) over samples')
+  else:
+    ax.set_title(r'$\Sigma_{i,j}$: $\mathbf{l}$ mean(var) over samples')
+  plt.show()
 
 def histograms_precision(precisios_merged=None, lengthscales_merged=None, d=6, fig_width=10, fig_height=10, bins=100):
     fig, axes = plt.subplots(d, d, figsize=(fig_width, fig_height))
