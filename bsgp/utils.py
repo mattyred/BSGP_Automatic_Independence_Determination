@@ -49,7 +49,7 @@ def logdet_jacobian(Kc, U):
     kron2 = tf.squeeze(tf.linalg.LinearOperatorKronecker([I, UmT]).to_dense())
     J = tf.linalg.matmul(kron1, Kc) + kron2
     eigs = tf.math.real(tf.linalg.eigvals(J)) 
-    #tf.print({'eigs-J': eigs[0:n*(n+1)//2]}, output_stream=sys.stderr)
+    #tf.print({'eigs shape': tf.shape(eigs)}, output_stream=sys.stderr)
     eigs = tf.sort(eigs, direction='DESCENDING')
     eigs_nonzero = eigs[0:n*(n+1)//2]
     logdet = tf.reduce_sum(tf.math.log(tf.math.abs(eigs_nonzero)))

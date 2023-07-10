@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from scipy.cluster.vq import kmeans2
+import tensorflow_probability as tfp
 
 from .base_model import BaseModel
 from . import conditionals
@@ -110,6 +111,8 @@ class Layer(object):
                 # Laplace(0,1) prior on the whole precision
                 #tf.print(self.kernel.Up, output_stream=sys.stderr)
                 prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
+            elif self.prior_precision_type == 'laplace-U':
+                prior_precision = -tf.reduce_sum(tf.norm(tfp.math.fill_triangular(self.kernel.Up, upper=True), ord=1) / self.prior_laplace_b)
             else:
                 # Normal(0,1) prior on precision's diagonal
                 precision_diagonal = tf.math.log(tf.linalg.tensor_diag_part(self.kernel.precision()))
