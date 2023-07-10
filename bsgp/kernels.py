@@ -311,11 +311,14 @@ class FullPrecisionRBF(Kernel):
         Lambda = self.precision()
         return 'Variance: {}\nLambda: {}'.format(self.variance, Lambda)
     def __str__(self):
+        if self.prior_precision_info['type'] is not None:
+            prior_precision_info_str = ' Prior precision type = %s (b = %.2f)'%(self.prior_precision_info['type'], self.prior_precision_info['hparams'])
+        else:
+            prior_precision_info_str = ' Prior precision type = None' 
         str = [
             '======= Kernel: FullPrecisionRBF (param: UᵀU)',
             # ' Input dim = %d' % self.input_dim,
             ' Variance = %.3f' % self._v,
-            ' Prior precision type = %s' % self.prior_precision_info['type'],
-            ' Laplace b value = %.3f' % self.prior_precision_info['hparams']
+            prior_precision_info_str
         ]
         return '\n'.join(str)

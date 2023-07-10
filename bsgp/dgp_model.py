@@ -112,7 +112,7 @@ class Layer(object):
                 prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
             else:
                 # Normal(0,1) prior on precision's diagonal
-                precision_diagonal = tf.linalg.tensor_diag_part(self.kernel.precision())
+                precision_diagonal = tf.math.log(tf.linalg.tensor_diag_part(self.kernel.precision()))
                 prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0 + logdet
             prior_hyper = prior_precision + prior_kernel_logvariance
         else:
