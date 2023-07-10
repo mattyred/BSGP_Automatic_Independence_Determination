@@ -118,7 +118,8 @@ class Layer(object):
                 # Normal(0,1) prior on U diagonal
                 #_, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
                 u_diagonal = tf.linalg.tensor_diag_part(tfp.math.fill_triangular(self.kernel.Up, upper=True))
-                prior_precision = -tf.reduce_sum(tf.square(u_diagonal)) / 2.0
+                precision_diagonal = tf.linalg.tensor_diag_part(self.kernel.precision())
+                prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0
             prior_hyper = prior_precision + prior_kernel_logvariance
         else:
             # Logormal(0,1) prior on log-lengthscales
