@@ -253,6 +253,7 @@ class FullPrecisionRBF(Kernel):
     def __init__(self, **kwargs):
         randomized = kwargs["randomized"]
         d = kwargs["d"]
+        self.prior_precision_info = kwargs["prior_precision_info"]
         self._v = kwargs["variance"]
         if not randomized:
             Up = get_upper_triangular_from_diag(d)
@@ -313,6 +314,8 @@ class FullPrecisionRBF(Kernel):
         str = [
             '======= Kernel: FullPrecisionRBF (param: UᵀU)',
             # ' Input dim = %d' % self.input_dim,
-            ' Variance = %.3f' % self._v
+            ' Variance = %.3f' % self._v,
+            ' Prior precision type = %s' % self.prior_precision_info['type'],
+            ' Laplace b value = %.3f' % self.prior_precision_info['hparams']
         ]
         return '\n'.join(str)

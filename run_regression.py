@@ -177,15 +177,18 @@ def main():
                 test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel)
                 current_fold_data_ker1['test_mnll'] = test_mnll
                 current_fold_data_ker1['trained_model'] = model
+                print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, args.precise_kernel, current_fold_data_ker1['test_mnll']))
             else: # ARD and LRBF
                 # ARD model
                 test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False) 
                 current_fold_data_ker1['test_mnll'] = test_mnll
-                current_fold_data_ker1['trained_model'] = model 
+                current_fold_data_ker1['trained_model'] = model
+                print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, 0, current_fold_data_ker1['test_mnll'])) 
                 # LRBF model
                 test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=True) 
                 current_fold_data_ker2['test_mnll'] = test_mnll
                 current_fold_data_ker2['trained_model'] = model
+                print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, 1, current_fold_data_ker2['test_mnll']))
             # Store results current fold in 'kfold_data'
             if args.precise_kernel == 0 or args.precise_kernel == 1: # LRBF or ARD
                 kfold_data_ker1.append({'test_mnll': current_fold_data_ker1['test_mnll'], 'trained_model': current_fold_data_ker1['trained_model'], 'precise_kernel': args.precise_kernel})

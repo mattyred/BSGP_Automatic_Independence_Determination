@@ -47,7 +47,8 @@ class Model(object):
             for i in range(self.ARGS.n_layers):
                 output_dim = 196 if i >= 1 and X.shape[1] > 700 else X.shape[1]
                 # kerns.append(BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)) # LRBF-MOD
-                kernel = BgpFullRBF(variance=0.1, randomized=False, d=output_dim) if self.ARGS.precise_kernel else BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)
+                prior_precision_info = {'type': self.ARGS.prior_precision_type, 'hparams': self.ARGS.prior_laplace_b}
+                kernel = BgpFullRBF(variance=0.1, randomized=False, d=output_dim, prior_precision_info=prior_precision_info) if self.ARGS.precise_kernel else BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)
                 kerns.append(kernel)
 
             mb_size = self.ARGS.minibatch_size if X.shape[0] > self.ARGS.minibatch_size else X.shape[0]

@@ -105,17 +105,18 @@ class Layer(object):
         # Lognormal(0,0.05) prior on kernel logvariance
         prior_kernel_logvariance =  -tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
         if self.precise_kernel:
+            _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
             if self.prior_precision_type == 'laplace':
                 # Laplace(0,1) prior on the whole precision
-                _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
                 #tf.print(self.kernel.Up, output_stream=sys.stderr)
                 prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
             else:
-                # Lognormal(0,1) prior on precision's diagonal
+                # Normal(0,1) prior on precision's diagonal
                 precision_diagonal = tf.linalg.tensor_diag_part(self.kernel.precision())
-                prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0
+                prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0 + logdet
             prior_hyper = prior_precision + prior_kernel_logvariance
         else:
+            # Logormal(0,1) prior on log-lengthscales
             prior_hyper = -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 + prior_kernel_logvariance
 
         # return -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0 LRBF-MOD
@@ -131,7 +132,6 @@ class Layer(object):
             ' Output dim = %d' % self.outputs,
             ' Num inducing = %d' % self.M,
             ' Prior on inducing positions = %s' % self.prior_type,
-            ' Prior on kernel precision = %s' % self.prior_precision_type,
             '\n'.join(map(lambda s: ' |' + s, self.kernel.__str__().split('\n')))
         ]
 
