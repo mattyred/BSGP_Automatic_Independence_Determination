@@ -116,9 +116,10 @@ class Layer(object):
                 prior_precision = -tf.reduce_sum(tf.norm(tfp.math.fill_triangular(self.kernel.Up, upper=True), ord=1) / self.prior_laplace_b)
             else:
                 # Normal(0,1) prior on precision's diagonal
-                _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
-                precision_diagonal = tf.math.log(tf.linalg.tensor_diag_part(self.kernel.precision()))
-                prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0 + logdet
+                #_, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
+                #precision_diagonal = tf.math.log(tf.linalg.tensor_diag_part(self.kernel.precision()))
+                #prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0 + logdet
+                prior_precision = 0
             prior_hyper = prior_precision + prior_kernel_logvariance
         else:
             # Logormal(0,1) prior on log-lengthscales
