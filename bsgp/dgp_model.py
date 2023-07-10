@@ -106,15 +106,17 @@ class Layer(object):
         # Lognormal(0,0.05) prior on kernel logvariance
         prior_kernel_logvariance =  -tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
         if self.precise_kernel:
-            _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
             if self.prior_precision_type == 'laplace':
-                # Laplace(0,1) prior on the whole precision
+                # Laplace(0,b) prior on the whole precision
                 #tf.print(self.kernel.Up, output_stream=sys.stderr)
+                _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
                 prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
             elif self.prior_precision_type == 'laplace-U':
+                # Laplace(0,b) prior on U
                 prior_precision = -tf.reduce_sum(tf.norm(tfp.math.fill_triangular(self.kernel.Up, upper=True), ord=1) / self.prior_laplace_b)
             else:
                 # Normal(0,1) prior on precision's diagonal
+                _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
                 precision_diagonal = tf.math.log(tf.linalg.tensor_diag_part(self.kernel.precision()))
                 prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0 + logdet
             prior_hyper = prior_precision + prior_kernel_logvariance
