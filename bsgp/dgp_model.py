@@ -108,16 +108,17 @@ class Layer(object):
         if self.precise_kernel:
             if self.prior_precision_type == 'laplace':
                 # Laplace(0,b) prior on the whole precision
-                #tf.print(self.kernel.Up, output_stream=sys.stderr)
-                _, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
+                #tf.print(self.kernel.L, output_stream=sys.stderr)
+                logdet = logdet_jacobian(self.kernel.L)
+                #tf.print({'logdet': logdet}, output_stream=sys.stderr)
                 prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
-            elif self.prior_precision_type == 'laplace-U':
+            elif self.prior_precision_type == 'laplace-L':
                 # Laplace(0,b) prior on U
-                prior_precision = -tf.reduce_sum(tf.norm(tfp.math.fill_triangular(self.kernel.Up, upper=True), ord=1) / self.prior_laplace_b)
+                prior_precision = -tf.reduce_sum(tf.norm(tfp.math.fill_triangular(self.kernel.L, upper=False), ord=1) / self.prior_laplace_b)
             else:
                 # Normal(0,1) prior on U diagonal
-                #_, _, logdet = logdet_jacobian(self.Kc, self.kernel.Up)
-                u_diagonal = tf.linalg.tensor_diag_part(tfp.math.fill_triangular(self.kernel.Up, upper=True))
+                #_, _, logdet = logdet_jacobian(self.Kc, self.kernel.L)
+                u_diagonal = tf.linalg.tensor_diag_part(tfp.math.fill_triangular(self.kernel.L, upper=False))
                 precision_diagonal = tf.linalg.tensor_diag_part(self.kernel.precision())
                 prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0
             prior_hyper = prior_precision + prior_kernel_logvariance
@@ -191,7 +192,7 @@ class DGP(BaseModel):
         variables = []
         for l in self.layers:
             # variables += [l.U, l.Z, l.kernel.loglengthscales, l.kernel.logvariance] LRBF-MOD
-            variables += [l.U, l.Z, l.kernel.Up if precise_kernel else l.kernel.loglengthscales, l.kernel.logvariance]
+            variables += [l.U, l.Z, l.kernel.L if precise_kernel else l.kernel.loglengthscales, l.kernel.logvariance]
 
         super().__init__(X, Y, variables, minibatch_size, window_size)
         self.f, self.fmeans, self.fvars = self.propagate(self.X_placeholder)

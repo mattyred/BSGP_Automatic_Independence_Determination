@@ -85,7 +85,7 @@ def save_results_static(filepath, onefold_data, precise_kernel):
         if args.prior_precision_type == 'laplace':
             results['prior_laplace_b'] = args.prior_laplace_b
         jsonfilepath = filepath + 'LRBF_results.json'
-        results['posterior_samples_U_precision'] = onefold_data['trained_model'].posterior_samples_kerncov
+        results['posterior_samples_L_precision'] = onefold_data['trained_model'].posterior_samples_kerncov
     else:
         jsonfilepath = filepath + 'ARD_results.json'
         results['posterior_samples_loglengthscales'] = onefold_data['trained_model'].posterior_samples_kerncov
@@ -115,10 +115,10 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
         if args.prior_precision_type == 'laplace':
             results['prior_laplace_b'] = args.prior_laplace_b
         jsonfilepath = filepath + 'LRBF_results.json'
-        results['posterior_samples_U_precision'] = []
+        results['posterior_samples_L_precision'] = []
         for i in range(args.kfold):
             model = kfold_data[i]['trained_model'] # model of fold 'i'
-            results['posterior_samples_U_precision'].append(model.posterior_samples_kerncov)
+            results['posterior_samples_L_precision'].append(model.posterior_samples_kerncov)
     elif precise_kernel == 0:
         jsonfilepath = filepath + 'ARD_results.json'
         results['posterior_samples_loglengthscales'] = []
@@ -239,7 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('--step_size', type=float, default=0.01)
     parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF, 2: BOTH)
     parser.add_argument('--kfold', type=int, default=-1) # Number of folds for k-fold cv
-    parser.add_argument('--prior_precision_type', choices=['laplace','laplace-U'], default=None) # Prior on kernel precision matrix
+    parser.add_argument('--prior_precision_type', choices=['laplace','laplace-L'], default=None) # Prior on kernel precision matrix
     parser.add_argument('--prior_laplace_b', type=float, default=None) # b parameter of Laplace(0,b) prior on precision matrix
 
     args = parser.parse_args()

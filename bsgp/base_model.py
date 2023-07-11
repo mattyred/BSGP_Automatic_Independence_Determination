@@ -24,8 +24,8 @@ class BaseModel(object):
         sample_updates = []
 
         grads = tf.gradients(nll, self.vars)
-        value = 10
-        grads = [tf.clip_by_value(g, clip_value_min=-value, clip_value_max=value) for g in grads]
+        #value = 10
+        #grads = [tf.clip_by_value(g, clip_value_min=-value, clip_value_max=value) for g in grads]
 
         for theta, grad in zip(self.vars, grads):
             xi = tf.Variable(tf.ones_like(theta), dtype=tf.float64, trainable=False)

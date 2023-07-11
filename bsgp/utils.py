@@ -13,31 +13,32 @@ def get_rand(x, full_cov=False):
         return mean + rnd
     return mean + tf.random.normal(tf.shape(mean), dtype=tf.float64) * tf.sqrt(var)
 
-def get_upper_triangular_from_diag(d):
+def get_lower_triangular_from_diag(d):
     """
     diag: diagonal of lengthscales parameter [D,]
     ---
     Σ=inv(Λ) -> diagonal matrix with lengthscales on the diagonal (RBF)
     The diagonal of Λ is obtained as 1/(l^2), l is a lengthscale
-    returns: L, Λ=UᵀU
+    returns: L, Λ=LLᵀ
     """
     # Define the lengthscales according to the standard RBF kernel
     lengthscales = np.full((d,), d**0.5, dtype=np.float64) # lengthscales = tf.constant([d**0.5]*d, dtype=tf.float64)
-    # Obtain the matrix U such that UᵀU=Λ and Λ=inv(diag(lengthscales))
+    # Obtain the matrix L such that LLᵀ=Λ and Λ=inv(diag(lengthscales))
     Lambda = np.diag(1/(lengthscales**2)) # Lambda = tf.linalg.diag(1/(lengthscales**2))
-    Up = scipy.linalg.cholesky(Lambda, lower=False) # Up = Cholesky(inv(diag(lengthscales)))
-    return tfp.math.fill_triangular_inverse(Up, upper=True) 
+    L = scipy.linalg.cholesky(Lambda, lower=True) # L = Cholesky(inv(diag(lengthscales)))
+    return tfp.math.fill_triangular_inverse(L, upper=False) 
 
-def get_upper_triangular_uniform_random(d):
-    full_Up = np.random.uniform(-1,1,(d,d))
-    Lambda = np.transpose(full_Up) @ full_Up # Λ=UᵀU
-    Up = scipy.linalg.cholesky(Lambda, lower=False)
-    return tfp.math.fill_triangular_inverse(Up, upper=True) 
+def get_lower_triangular_uniform_random(d):
+    full_L = np.random.uniform(-1,1,(d,d))
+    Lambda = full_L @ np.transpose(full_L)# Λ=LLᵀ
+    L = scipy.linalg.cholesky(Lambda, lower=True)
+    return tfp.math.fill_triangular_inverse(L, upper=False) 
 
 def commutation_matrix(m, n):
     w = np.arange(m * n).reshape((m, n), order="F").T.ravel(order="F")
     return np.eye(m * n)[w, :]
 
+"""
 @tf.function
 def logdet_jacobian(Kc, U):
     #tf.print({'vecU': U}, output_stream=sys.stderr)
@@ -54,3 +55,13 @@ def logdet_jacobian(Kc, U):
     eigs_nonzero = eigs[0:n*(n+1)//2]
     logdet = tf.reduce_sum(tf.math.log(tf.math.abs(eigs_nonzero)))
     return eigs, eigs_nonzero, logdet
+"""
+@tf.function
+def logdet_jacobian(L):
+    #tf.print({'vecL': L}, output_stream=sys.stderr)
+    L = tfp.math.fill_triangular(L, upper=False)
+    n = L.shape[0]
+    diag_L = tf.linalg.tensor_diag_part(L) + 1e-6
+    exps = tf.cast(tf.reverse(tf.range(n) + 1, axis=[0]), dtype=L.dtype)
+    #tf.print({'e': diag_L**exps}, output_stream=sys.stderr)
+    return tf.math.log((2.0**n) * tf.reduce_prod(tf.pow(diag_L,exps)))

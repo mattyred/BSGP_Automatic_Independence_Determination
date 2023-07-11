@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 import numpy as np
-from .utils import get_upper_triangular_from_diag, get_upper_triangular_uniform_random
+from .utils import get_lower_triangular_from_diag, get_lower_triangular_uniform_random
 import tensorflow_probability as tfp
 
 class Kernel(object):
@@ -256,11 +256,11 @@ class FullPrecisionRBF(Kernel):
         self.prior_precision_info = kwargs["prior_precision_info"]
         self._v = kwargs["variance"]
         if not randomized:
-            Up = get_upper_triangular_from_diag(d)
+            L = get_lower_triangular_from_diag(d)
         else:
-            Up = get_upper_triangular_uniform_random(d)
+            L = get_lower_triangular_uniform_random(d)
         super().__init__(input_dim=d)
-        self.Up = tf.Variable(Up, name='Up', dtype=tf.float64)
+        self.L = tf.Variable(L, name='L', dtype=tf.float64)
         self.logvariance = tf.Variable(np.log(self._v), dtype=tf.float64, name='log_variance', trainable=False)
         self.variance = tf.exp(self.logvariance)
 
@@ -303,8 +303,8 @@ class FullPrecisionRBF(Kernel):
         return tf.math.reduce_sum(XLambdaX, axis=1, keepdims=True)
     
     def precision(self):
-        Up = tfp.math.fill_triangular(self.Up, upper=True) # recover U matrix from U array
-        Lambda = tf.linalg.matmul(tf.transpose(Up), Up)
+        L = tfp.math.fill_triangular(self.L, upper=False) # recover L matrix from L array
+        Lambda = tf.linalg.matmul(L, tf.transpose(L))
         return Lambda
     
     def __str__(self):
@@ -316,7 +316,7 @@ class FullPrecisionRBF(Kernel):
         else:
             prior_precision_info_str = ' Prior precision type = None' 
         str = [
-            '======= Kernel: FullPrecisionRBF (param: UᵀU)',
+            '======= Kernel: FullPrecisionRBF (param: LLᵀ)',
             # ' Input dim = %d' % self.input_dim,
             ' Variance = %.3f' % self._v,
             prior_precision_info_str

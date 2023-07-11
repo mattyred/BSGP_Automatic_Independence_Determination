@@ -10,11 +10,11 @@ def process_results(filepath=None, precise_kernel=0, invsquare=False, d=6):
     n_samples = len(results['posterior_samples_kernlogvar'])
     posterior_samples_kerlogvar = np.array(results['posterior_samples_kernlogvar'])
     if precise_kernel:
-        posterior_samples_U = [np.array(results['posterior_samples_U_precision'][i]) for i in range(n_samples)]
+        posterior_samples_L = [np.array(results['posterior_samples_L_precision'][i]) for i in range(n_samples)]
         precisions_list = []
         for i in range(n_samples):
-            U = tfp.math.fill_triangular(posterior_samples_U[i], upper=True)
-            precision = tf.linalg.matmul(tf.transpose(U), U)
+            L = tfp.math.fill_triangular(posterior_samples_L[i], upper=False)
+            precision = tf.linalg.matmul(L, tf.transpose(L))
             precisions_list.append(precision.numpy())
         precisions_merged = np.empty((d, d), dtype=object)
         precisions_merged_mean = np.empty((d, d))
