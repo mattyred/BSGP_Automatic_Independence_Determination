@@ -110,7 +110,8 @@ class Layer(object):
                 # Laplace(0,b) prior on the whole precision
                 #tf.print(self.kernel.L, output_stream=sys.stderr)
                 logdet = logdet_jacobian(self.kernel.L)
-                #tf.print({'logdet': logdet}, output_stream=sys.stderr)
+                if tf.math.is_nan(logdet):
+                    tf.print({'diag_L': tf.linalg.tensor_diag_part(tfp.math.fill_triangular(self.kernel.L)), 'logdet': logdet}, output_stream=sys.stderr)
                 prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
             elif self.prior_precision_type == 'laplace-L':
                 # Laplace(0,b) prior on U

@@ -61,7 +61,7 @@ def logdet_jacobian(L):
     #tf.print({'vecL': L}, output_stream=sys.stderr)
     L = tfp.math.fill_triangular(L, upper=False)
     n = L.shape[0]
-    diag_L = tf.linalg.tensor_diag_part(L) + 1e-6
+    diag_L = tf.linalg.tensor_diag_part(L) 
     exps = tf.cast(tf.reverse(tf.range(n) + 1, axis=[0]), dtype=L.dtype)
     #tf.print({'e': diag_L**exps}, output_stream=sys.stderr)
-    return tf.math.log((2.0**n) * tf.reduce_prod(tf.pow(diag_L,exps)))
+    return tf.math.log(tf.math.abs((2.0**n) * tf.reduce_prod(tf.pow(diag_L,exps))))
