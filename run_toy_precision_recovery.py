@@ -129,9 +129,9 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     model.ARGS.precise_kernel = precise_kernel 
     model.fit(X_train, Y_train, epsilon=args.step_size)
     test_mll = model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
-    save_results(filepath, test_mll, precision, precise_kernel, model.posterior_samples_kerncov, model.posterior_samples_kernlogvar) # kerncov: L matrix for LBRF / lengthscales for ARD   
+    save_results(filepath, test_mll, precision, precise_kernel, model.posterior_samples_kern_L, model.posterior_samples_kern_logvar) # kerncov: L matrix for LBRF / lengthscales for ARD   
 
-def save_results(filepath, test_mll, precision, precise_kernel, posterior_samples_kerncov, posterior_samples_kernlogvar):
+def save_results(filepath, test_mll, precision, precise_kernel, posterior_samples_kern_L, posterior_samples_kern_logvar):
     results = dict()
     results['toy_dataset'] = {'N': args.N, 'D': args.D, 'num_offdiag': args.num_offdiag, 'type_offdiag': args.type_offdiag}
     results['model'] = args.model
@@ -146,11 +146,11 @@ def save_results(filepath, test_mll, precision, precise_kernel, posterior_sample
     pprint(results)
     if precise_kernel:
         jsonfilepath = filepath + 'LRBF_results.json'
-        results['posterior_samples_L_precision'] = posterior_samples_kerncov
+        results['posterior_samples_L_precision'] = posterior_samples_kern_L
     else:
         jsonfilepath = filepath + 'ARD_results.json'
-        results['posterior_samples_loglengthscales'] = posterior_samples_kerncov
-    results['posterior_samples_kernlogvar'] = posterior_samples_kernlogvar
+        results['posterior_samples_loglengthscales'] = posterior_samples_kern_L
+    results['posterior_samples_kern_logvar'] = posterior_samples_kern_logvar
     results['underlying_precision'] = precision.tolist()
     with open(jsonfilepath, 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=4)

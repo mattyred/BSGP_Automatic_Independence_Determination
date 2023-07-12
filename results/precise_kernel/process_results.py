@@ -5,10 +5,11 @@ import seaborn as sns
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-def process_results(filepath=None, precise_kernel=0, invsquare=False, d=6):
+def process_results_onefold(filepath=None, precise_kernel=0, invsquare=False, d=6):
     results = pd.read_json(filepath)
-    n_samples = len(results['posterior_samples_kernlogvar'])
-    posterior_samples_kerlogvar = np.array(results['posterior_samples_kernlogvar'])
+    n_samples = len(results['posterior_samples_kern_logvar'])
+    posterior_samples_kerlogvar = np.array(results['posterior_samples_kern_logvar'])
+    test_mnll = results['test_mnll'][0]
     if precise_kernel:
         posterior_samples_L = [np.array(results['posterior_samples_L_precision'][i]) for i in range(n_samples)]
         precisions_list = []
@@ -24,7 +25,7 @@ def process_results(filepath=None, precise_kernel=0, invsquare=False, d=6):
                 precisions_merged[i, j] = [mat[i, j] for mat in precisions_list]
                 precisions_merged_mean[i, j] = np.mean(precisions_merged[i, j])
                 precisions_merged_var[i, j] = np.var(precisions_merged[i, j])
-        return precisions_merged, precisions_merged_mean, precisions_merged_var, posterior_samples_kerlogvar
+        return precisions_merged, precisions_merged_mean, precisions_merged_var, posterior_samples_kerlogvar, test_mnll
     else:
         posterior_samples_loglengthscales = [np.array(results['posterior_samples_loglengthscales'][i]) for i in range(n_samples)]
         lengthscales_list = []
@@ -42,21 +43,7 @@ def process_results(filepath=None, precise_kernel=0, invsquare=False, d=6):
                 if i==j:
                     lengthscales_merged_mean.append(np.mean(lengthscales_merged[i, j]))
                     lengthscales_merged_var.append(np.var(lengthscales_merged[i, j]))
-        return lengthscales_merged, lengthscales_merged_mean, lengthscales_merged_var, posterior_samples_kerlogvar
-
-def heatmap_precision(precisions_mean, precisions_var, annot=True, fig_height=7, fig_width=5):
-    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    d = precisions_mean.shape[0]
-    min, max = np.min(precisions_mean), np.max(precisions_mean)
-    h = sns.heatmap(precisions_mean, annot=annot, fmt='.3f', annot_kws={"size": 8}, cmap='vlag', vmax=max, vmin=-max, center=0, linewidth=.5, ax=ax) 
-    for i in range(d):
-        for j in range(d):
-            mean_text = f'{precisions_mean[i, j]:.3f}'
-            variance_text = f'({precisions_var[i, j]:.3f})'
-            text = f'{mean_text}\n' + f'{variance_text}'
-            h.texts[i * d + j].set_text(text)
-    ax.set_title(r'$\Lambda_{i,j}$: mean(var) over samples')
-    plt.show()
+        return lengthscales_merged, lengthscales_merged_mean, lengthscales_merged_var, posterior_samples_kerlogvar, test_mnll
 
 def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=False, d=6):
     results_kfold = pd.read_json(filepath)
@@ -64,14 +51,33 @@ def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=Fa
     mean_kfold = []
     var_kfold = []
     kerlogvar_kfold = []
+    test_mnll_kfold = []
     for k in range(kfold):
       fold_k_path = results_kfold.loc[k].to_json()
-      merged, mean, var, kerlogvar = process_results(filepath=fold_k_path, precise_kernel=precise_kernel, invsquare=invsquare, d=d)
+      merged, mean, var, kerlogvar, test_mnll = process_results_onefold(filepath=fold_k_path, precise_kernel=precise_kernel, invsquare=invsquare, d=d)
       merged_kfold.append(merged)
       mean_kfold.append(mean)
       var_kfold.append(var)
       kerlogvar_kfold.append(kerlogvar)
-    return merged_kfold, mean_kfold, var_kfold, kerlogvar_kfold
+      test_mnll_kfold.append(test_mnll)
+    mean_over_kfold  = np.mean(np.array(mean_kfold), axis=0)
+    var_over_kfold = np.var(np.array(mean_kfold), axis=0)
+    return merged_kfold, mean_kfold, mean_over_kfold, var_kfold, var_over_kfold, kerlogvar_kfold, test_mnll_kfold
+
+def heatmap_precision(precisions_mean, precisions_var, annot=True, fig_height=7, fig_width=5):
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    d = precisions_mean.shape[0]
+    min, max = np.min(precisions_mean), np.max(precisions_mean)
+    h = sns.heatmap(precisions_mean, annot=annot, fmt='.3f', annot_kws={"size": 8}, cmap='vlag', vmax=max, vmin=-max, center=0, linewidth=.5, ax=ax) 
+    if annot:
+        for i in range(d):
+            for j in range(d):
+                mean_text = f'{precisions_mean[i, j]:.3f}'
+                variance_text = f'({precisions_var[i, j]:.3f})'
+                text = f'{mean_text}\n' + f'{variance_text}'
+                h.texts[i * d + j].set_text(text)
+    ax.set_title(r'$\Lambda_{i,j}$: mean(var) over samples')
+    plt.show()
 
 def heatmap_ard(lengthscales_merged_mean, lengthscales_merged_var, invsquare=False, annot=True, fig_height=5, fig_width=7):
   fig, ax = plt.subplots(figsize=(fig_width, fig_height))
@@ -80,13 +86,14 @@ def heatmap_ard(lengthscales_merged_mean, lengthscales_merged_var, invsquare=Fal
   lengthscales_merged_mean_matrix = np.diag(lengthscales_merged_mean)
   lengthscales_merged_var_matrix = np.diag(lengthscales_merged_var)
   h = sns.heatmap(lengthscales_merged_mean_matrix, annot=True, fmt='.3f', annot_kws={"size": 8}, cmap='vlag', vmax=max, vmin=-max, center=0, linewidth=.5, ax=ax) 
-  for i in range(d):
-    for j in range(d):
-      if i == j:
-        mean_text = f'{lengthscales_merged_mean_matrix[i, j]:.3f}'
-        variance_text = f'({lengthscales_merged_var_matrix[i, j]:.3f})'
-        text = f'{mean_text}\n' + f'{variance_text}'
-        h.texts[i * d + j].set_text(text)
+  if annot:
+    for i in range(d):
+        for j in range(d):
+            if i == j:
+                mean_text = f'{lengthscales_merged_mean_matrix[i, j]:.3f}'
+                variance_text = f'({lengthscales_merged_var_matrix[i, j]:.3f})'
+                text = f'{mean_text}\n' + f'{variance_text}'
+                h.texts[i * d + j].set_text(text)
   if invsquare:
     ax.set_title(r'$\Sigma^{-1}_{i,j}$: $\mathbf{\frac{1}{l^2}}$ mean(var) over samples')
   else:
