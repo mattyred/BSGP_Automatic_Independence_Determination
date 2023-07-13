@@ -1,17 +1,25 @@
-import pandas as pd
+#import pandas as pd
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-def process_results_onefold(filepath=None, precise_kernel=0, invsquare=False, d=6):
-    results = pd.read_json(filepath)
+def process_results_onefold(filepath=None, dict=None, precise_kernel=0, invsquare=False, d=6):
+    #results = pd.read_json(filepath)
+    if dict is None: 
+        with open(filepath) as f:
+            results = json.load(f)
+    else:
+        results = dict
     n_samples = len(results['posterior_samples_kern_logvar'])
     posterior_samples_kerlogvar = np.array(results['posterior_samples_kern_logvar'])
-    test_mnll = results['test_mnll'][0]
+    test_mnll = results['test_mnll']
+    X_train_indices = np.array(results['X_train_indices'])
+    X_test_indices = np.array(results['X_test_indices'])
     if precise_kernel:
-        posterior_samples_L = [np.array(results['posterior_samples_L_precision'][i]) for i in range(n_samples)]
+        posterior_samples_L = [np.array(results['posterior_samples_kern_L'][i]) for i in range(n_samples)]
         precisions_list = []
         for i in range(n_samples):
             L = tfp.math.fill_triangular(posterior_samples_L[i], upper=False)
@@ -25,7 +33,8 @@ def process_results_onefold(filepath=None, precise_kernel=0, invsquare=False, d=
                 precisions_merged[i, j] = [mat[i, j] for mat in precisions_list]
                 precisions_merged_mean[i, j] = np.mean(precisions_merged[i, j])
                 precisions_merged_var[i, j] = np.var(precisions_merged[i, j])
-        return precisions_merged, precisions_merged_mean, precisions_merged_var, posterior_samples_kerlogvar, test_mnll
+        processed_results = {'precisions_merged': precisions_merged, 'precisions_merged_mean': precisions_merged_mean, 'precisions_merged_var': precisions_merged_var, 'posterior_samples_kerlogvar': posterior_samples_kerlogvar, 'test_mnll': test_mnll, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices}
+        return processed_results
     else:
         posterior_samples_loglengthscales = [np.array(results['posterior_samples_loglengthscales'][i]) for i in range(n_samples)]
         lengthscales_list = []
@@ -43,26 +52,50 @@ def process_results_onefold(filepath=None, precise_kernel=0, invsquare=False, d=
                 if i==j:
                     lengthscales_merged_mean.append(np.mean(lengthscales_merged[i, j]))
                     lengthscales_merged_var.append(np.var(lengthscales_merged[i, j]))
-        return lengthscales_merged, lengthscales_merged_mean, lengthscales_merged_var, posterior_samples_kerlogvar, test_mnll
+        processed_results = {'lengthscales_merged': lengthscales_merged, 'lengthscales_merged_mean': lengthscales_merged_mean, 'lengthscales_merged_var': lengthscales_merged_var, 'posterior_samples_kerlogvar': posterior_samples_kerlogvar, 'test_mnll': test_mnll, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices}
+        return processed_results
 
 def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=False, d=6):
-    results_kfold = pd.read_json(filepath)
+    #results_kfold = pd.read_json(filepath)
+    with open(filepath) as f:
+        results_kfold = json.load(f)
     merged_kfold = []
     mean_kfold = []
     var_kfold = []
     kerlogvar_kfold = []
     test_mnll_kfold = []
+    X_train_indices_kfold = []
+    X_test_indices_kfold = []
     for k in range(kfold):
-      fold_k_path = results_kfold.loc[k].to_json()
-      merged, mean, var, kerlogvar, test_mnll = process_results_onefold(filepath=fold_k_path, precise_kernel=precise_kernel, invsquare=invsquare, d=d)
-      merged_kfold.append(merged)
-      mean_kfold.append(mean)
-      var_kfold.append(var)
-      kerlogvar_kfold.append(kerlogvar)
-      test_mnll_kfold.append(test_mnll)
+      fold_k_path = results_kfold
+      processed_results = process_results_onefold(filepath=fold_k_path, precise_kernel=precise_kernel, invsquare=invsquare, d=d)
+      merged_kfold.append(processed_results[0])
+      mean_kfold.append(processed_results[1])
+      var_kfold.append(processed_results[2])
+      kerlogvar_kfold.append(processed_results['posterior_samples_kerlogvar'])
+      test_mnll_kfold.append(processed_results['test_mnll'])
+      X_train_indices_kfold.append(processed_results['X_train_indices'])
+      X_test_indices_kfold.append(processed_results['X_test_indices'])
     mean_over_kfold  = np.mean(np.array(mean_kfold), axis=0)
     var_over_kfold = np.var(np.array(mean_kfold), axis=0)
-    return merged_kfold, mean_kfold, mean_over_kfold, var_kfold, var_over_kfold, kerlogvar_kfold, test_mnll_kfold
+    processed_results_kfold = {}
+    if precise_kernel:
+        processed_results_kfold['precisions_merged_kfold'] = merged_kfold
+        processed_results_kfold['precisions_merged_mean_kfold'] = mean_kfold
+        processed_results_kfold['precisions_mean_over_kfold'] = mean_over_kfold
+        processed_results_kfold['precisions_merged_var_kfold'] = var_kfold 
+        processed_results_kfold['precisions_var_over_kfold'] = var_over_kfold
+    else:
+        processed_results_kfold['lengthscales_merged_kfold'] = merged_kfold
+        processed_results_kfold['lengthscales_merged_mean_kfold'] = mean_kfold
+        processed_results_kfold['lengthscales_mean_over_kfold'] = mean_over_kfold
+        processed_results_kfold['lengthscales_merged_var_kfold'] = var_kfold 
+        processed_results_kfold['lengthscales_var_over_kfold'] = var_over_kfold
+    processed_results_kfold['posterior_samples_kerlogvar_kfold'] = kerlogvar_kfold
+    processed_results_kfold['test_mnll'] = test_mnll_kfold
+    processed_results_kfold['X_train_indices_kfold'] = X_train_indices_kfold
+    processed_results_kfold['X_test_indices_kfold'] = X_test_indices_kfold
+    return processed_results_kfold
 
 def heatmap_precision(precisions_mean, precisions_var, annot=True, fig_height=7, fig_width=5):
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))

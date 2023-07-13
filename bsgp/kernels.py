@@ -307,6 +307,10 @@ class FullPrecisionRBF(Kernel):
         Lambda = tf.linalg.matmul(L, tf.transpose(L))
         return Lambda
     
+    def precision_off_diagonals(self):
+        diag_L = tf.linalg.tensor_diag_part(self.precision())
+        return self.precision() - tf.linalg.diag(diag_L)
+    
     def __str__(self):
         Lambda = self.precision()
         return 'Variance: {}\nLambda: {}'.format(self.variance, Lambda)
