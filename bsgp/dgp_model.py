@@ -115,7 +115,8 @@ class Layer(object):
                 prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
             elif self.prior_precision_type == 'laplace-diagnormal':
                 # Laplace(0,b) on Λ_ + Normal(0,1) on diag(Λ)
-                prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision_off_diagonals(), ord=1) / self.prior_laplace_b) - tf. reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) + logdet
+                logdet = logdet_jacobian(self.kernel.L)
+                prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision_off_diagonals(), ord=1) / self.prior_laplace_b) - tf. reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0 + logdet
             else:
                 # Normal(0,1) prior on U diagonal
                 #_, _, logdet = logdet_jacobian(self.Kc, self.kernel.L)

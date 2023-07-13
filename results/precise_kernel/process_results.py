@@ -67,11 +67,29 @@ def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=Fa
     X_train_indices_kfold = []
     X_test_indices_kfold = []
     for k in range(kfold):
-      fold_k_path = results_kfold
-      processed_results = process_results_onefold(filepath=fold_k_path, precise_kernel=precise_kernel, invsquare=invsquare, d=d)
-      merged_kfold.append(processed_results[0])
-      mean_kfold.append(processed_results[1])
-      var_kfold.append(processed_results[2])
+      dict_fold_k = {
+          'model': results_kfold['model'],
+          'kfold': results_kfold['kfold'],
+          'num_inducing': results_kfold['num_inducing'],
+          'minibatch_size': results_kfold['minibatch_size'],
+          'n_layers': results_kfold['n_layers'],
+          'prior_type': results_kfold['prior_type'],
+          'fold': results_kfold['fold'],
+          'dataset': results_kfold['dataset'],
+          'precise_kernel': results_kfold['precise_kernel'],
+          'prior_precision_type': results_kfold['prior_precision_type'],
+          'posterior_samples_kern_L': results_kfold['posterior_samples_kern_L'][k],
+          'posterior_samples_kern_logvar': results_kfold['posterior_samples_kern_logvar'][k],
+          'posterior_samples_U': results_kfold['posterior_samples_U'][k],
+          'posterior_samples_Z': results_kfold['posterior_samples_Z'][k],
+          'test_mnll': results_kfold['test_mnll'][k],
+          'X_train_indices': results_kfold['X_train_indices'][k],
+          'X_test_indices': results_kfold['X_test_indices'][k]
+      }
+      processed_results = process_results_onefold(dict=dict_fold_k, precise_kernel=precise_kernel, invsquare=invsquare, d=d)
+      merged_kfold.append(processed_results['precisions_merged']) if precise_kernel else merged_kfold.append(processed_results['lengthscales_merged'])
+      mean_kfold.append(processed_results['precisions_merged_mean']) if precise_kernel else mean_kfold.append(processed_results['lengthscales_merged_mean'])
+      var_kfold.append(processed_results['precisions_merged_var']) if precise_kernel else var_kfold.append(processed_results['lengthscales_merged_var'])
       kerlogvar_kfold.append(processed_results['posterior_samples_kerlogvar'])
       test_mnll_kfold.append(processed_results['test_mnll'])
       X_train_indices_kfold.append(processed_results['X_train_indices'])
