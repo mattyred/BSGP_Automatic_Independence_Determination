@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 import tensorflow_probability as tfp
+import argparse
 
 def process_results_onefold(filepath=None, dict=None, precise_kernel=0, invsquare=False, d=6):
     #results = pd.read_json(filepath)
@@ -67,6 +68,7 @@ def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=Fa
     X_train_indices_kfold = []
     X_test_indices_kfold = []
     for k in range(kfold):
+      posterior_samples_kern_cov = 'posterior_samples_kern_L' if precise_kernel else 'posterior_samples_loglengthscales'
       dict_fold_k = {
           'model': results_kfold['model'],
           'kfold': results_kfold['kfold'],
@@ -77,8 +79,8 @@ def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=Fa
           'fold': results_kfold['fold'],
           'dataset': results_kfold['dataset'],
           'precise_kernel': results_kfold['precise_kernel'],
-          'prior_precision_type': results_kfold['prior_precision_type'],
-          'posterior_samples_kern_L': results_kfold['posterior_samples_kern_L'][k],
+          #'prior_precision_type': results_kfold['prior_precision_type'],
+           posterior_samples_kern_cov: results_kfold['posterior_samples_kern_L'][k] if precise_kernel else results_kfold['posterior_samples_loglengthscales'][k],
           'posterior_samples_kern_logvar': results_kfold['posterior_samples_kern_logvar'][k],
           'posterior_samples_U': results_kfold['posterior_samples_U'][k],
           'posterior_samples_Z': results_kfold['posterior_samples_Z'][k],
@@ -170,3 +172,31 @@ def histograms_precision(precisios_merged=None, lengthscales_merged=None, d=6, f
             ax.set_ylabel('')
     fig.tight_layout()
     plt.show()
+
+def convert_numpy_to_list(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_to_list(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_to_list(item) for item in obj]
+    else:
+        return obj
+
+def main():
+    processed_results_kfold = process_results_kfold(filepath=args.input_path, precise_kernel=args.precise_kernel, d=args.D, kfold=args.kfold)
+    processed_results_kfold_aslist = convert_numpy_to_list(processed_results_kfold)
+    with open(args.output_path, "w") as outfile:
+        json.dump(processed_results_kfold_aslist, outfile)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Run regression experiment')
+    parser.add_argument('--input_path', default=None)
+    parser.add_argument('--output_path', default=None)
+    parser.add_argument('--dataset', choices=['boston','kin8nm'], default=None)
+    parser.add_argument('--D', type=int, default=None)
+    parser.add_argument('--precise_kernel', type=int, choices=[0,1], default=1)
+    parser.add_argument('--kfold', type=int, default=5)
+    parser.add_argument('--type_data', choices=['precision','performance'], default=None)
+    args = parser.parse_args()
+    main()
