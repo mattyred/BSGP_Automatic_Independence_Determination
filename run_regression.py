@@ -89,7 +89,7 @@ def save_results_onefold(filepath, onefold_data, precise_kernel):
     pprint(results)
     if precise_kernel:
         results['prior_precision_type'] = args.prior_precision_type
-        if args.prior_precision_type == 'laplace':
+        if args.prior_precision_type == 'laplace' or args.prior_precision_type == 'laplace-diagnormal':
             results['prior_laplace_b'] = args.prior_laplace_b
         jsonfilepath = filepath + 'LRBF_results.json'
         results['posterior_samples_kern_L'] = onefold_data['trained_model'].posterior_samples_kern_L
@@ -123,7 +123,7 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     # Save kernel precision matrices
     if precise_kernel == 1:
         results['prior_precision_type'] = args.prior_precision_type
-        if args.prior_precision_type == 'laplace':
+        if args.prior_precision_type == 'laplace' or args.prior_precision_type == 'laplace-diagnormal':
             results['prior_laplace_b'] = args.prior_laplace_b
         jsonfilepath = filepath + 'LRBF_results.json'
         results['posterior_samples_kern_L'] = []

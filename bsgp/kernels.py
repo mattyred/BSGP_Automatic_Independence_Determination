@@ -319,7 +319,9 @@ class FullPrecisionRBF(Kernel):
         return 'Variance: {}\nLambda: {}'.format(self.variance, Lambda)
     def __str__(self):
         if self.prior_precision_info['type'] is not None:
-            prior_precision_info_str = ' Prior precision type = %s (b = %.2f)'%(self.prior_precision_info['type'], self.prior_precision_info['hparams'])
+            prior_precision_info_str = ' Prior precision type = %s'%(self.prior_precision_info['type'])
+            if self.prior_precision_info['type'] == 'laplace' or self.prior_precision_info['type'] == 'laplace-diagnormal':
+                prior_precision_info_str +=  ' (b = %.2f)'%self.prior_precision_info['hparams']
         else:
             prior_precision_info_str = ' Prior precision type = None' 
         str = [
