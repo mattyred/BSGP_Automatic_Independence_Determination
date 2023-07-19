@@ -252,14 +252,14 @@ class FullPrecisionRBF(Kernel):
 
     def __init__(self, **kwargs):
         randomized = kwargs["randomized"]
-        d = kwargs["d"]
+        self.d = kwargs["d"]
         self.prior_precision_info = kwargs["prior_precision_info"]
         self._v = kwargs["variance"]
         if not randomized:
-            L = get_lower_triangular_from_diag(d)
+            L = get_lower_triangular_from_diag(self.d)
         else:
-            L = get_lower_triangular_uniform_random(d)
-        super().__init__(input_dim=d)
+            L = get_lower_triangular_uniform_random(self.d)
+        super().__init__(input_dim=self.d)
         self.L = tf.Variable(L, name='L', dtype=tf.float64)
         self.logvariance = tf.Variable(np.log(self._v), dtype=tf.float64, name='log_variance', trainable=False)
         self.variance = tf.exp(self.logvariance)
@@ -310,6 +310,9 @@ class FullPrecisionRBF(Kernel):
     def precision_off_diagonals(self):
         diag_L = tf.linalg.tensor_diag_part(self.precision())
         return self.precision() - tf.linalg.diag(diag_L)
+    
+    def precision_off_diagonals_prot(self):
+        return tf.boolean_mask(self.precision(), ~tf.eye(self.d, self.d, dtype=tf.bool))
     
     def __str__(self):
         Lambda = self.precision()

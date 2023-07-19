@@ -65,3 +65,14 @@ def logdet_jacobian(L, eps=1e-6):
     exps = tf.cast(tf.reverse(tf.range(n) + 1, axis=[0]), dtype=L.dtype)
     #tf.print({'e': diag_L**exps}, output_stream=sys.stderr)
     return tf.cast(n*tf.math.log(2.0), dtype=L.dtype) + tf.reduce_sum(tf.math.multiply(exps,tf.math.log(tf.math.abs(diag_L) + eps))) #tf.math.log(tf.math.abs((2.0**n) * tf.reduce_prod(tf.pow(diag_L,exps))))
+
+def horseshoe_log_prob(hs, X):
+    X = tf.cast(X, dtype=tf.float32) # to be input of hs.log_prob
+    #tf.print({'X': X}, output_stream=sys.stderr)
+    #X = X + 1e-1 #tf.where(X == 0, 1e-1, X)
+    X = tf.boolean_mask(X, tf.not_equal(X, 0))
+    hs_log_prob = hs.log_prob(X) # remove 0 elements
+    #tf.print({'X': hs_log_prob, 'hs_log_prob': tf.reduce_sum(tf.cast(hs_log_prob, dtype=tf.float64))}, output_stream=sys.stderr)
+    #hs_log_prob = tf.where(tf.math.is_inf(hs_log_prob), hs.log_prob(0.1), hs_log_prob)
+    #tf.print({'hs_log_prob_noinf': tf.cast(hs_log_prob, dtype=tf.float64)}, output_stream=sys.stderr)
+    return tf.reduce_sum(tf.cast(hs_log_prob, dtype=tf.float64)) # to be input of reduce_sum
