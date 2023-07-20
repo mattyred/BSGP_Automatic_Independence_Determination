@@ -102,7 +102,7 @@ class Layer(object):
 
         else: #
             raise Exception("Invalid prior type")
-    @tf.function
+
     def prior_hyper(self):
         # Lognormal(0,0.05) prior on kernel logvariance
         prior_kernel_logvariance =  -tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
@@ -110,8 +110,6 @@ class Layer(object):
             logdet = logdet_jacobian(self.kernel.L)
             if self.prior_precision_type == 'laplace':
                 # Laplace(0,b) prior on Λ
-                if tf.math.is_nan(logdet):
-                    tf.print({'diag_L': tf.linalg.tensor_diag_part(tfp.math.fill_triangular(self.kernel.L)), 'logdet': logdet}, output_stream=sys.stderr)
                 prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
             elif self.prior_precision_type == 'laplace-diagnormal':
                 # Laplace(0,b) on Λ_ + Normal(0,1) on diag(Λ)
@@ -209,7 +207,7 @@ class DGP(BaseModel):
         super().__init__(X, Y, variables, minibatch_size, window_size)
         self.f, self.fmeans, self.fvars = self.propagate(self.X_placeholder)
         self.y_mean, self.y_var = self.likelihood.predict_mean_and_var(self.fmeans[-1], self.fvars[-1])
-
+    
         self.prior = tf.add_n([l.prior() for l in self.layers])
         self.log_likelihood = self.likelihood.predict_density(self.fmeans[-1], self.fvars[-1], self.Y_placeholder)
 

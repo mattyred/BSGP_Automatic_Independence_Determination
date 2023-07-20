@@ -3,7 +3,7 @@
 import tensorflow as tf
 import numpy as np
 from .quadrature import ndiagquad
-
+import sys
 class Gaussian(object):
     def logdensity(self, x, mu, var):
         return -0.5 * (np.log(2 * np.pi) + tf.math.log(var) + tf.square(mu-x) / var)

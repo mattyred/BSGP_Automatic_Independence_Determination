@@ -5,7 +5,7 @@ from scipy.stats import norm
 from scipy.special import logsumexp
 from .kernels import SquaredExponential as BgpSE
 from .kernels import FullPrecisionRBF as BgpFullRBF
-from .likelihoods import Gaussian
+from .likelihoods import Gaussian, Bernoulli
 import tensorflow as tf
 
 PRIORS = ['uniform', 'normal', 'determinantal', 'strauss']
@@ -124,6 +124,34 @@ class RegressionModel(Model):
         ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
         logps = norm.logpdf(np.repeat(Ys[None, :, :]*ystd, self.ARGS.num_posterior_samples, axis=0), ms*ystd, np.sqrt(vs)*ystd)
         return logsumexp(logps, axis=0) - np.log(self.ARGS.num_posterior_samples)
+
+    def sample(self, Xs, S):
+        ms, vs = self._predict(Xs, S)
+        return ms + vs**0.5 * np.random.randn(*ms.shape)
+    
+class ClassificationModel(Model):
+    def __init__(self, prior_type, output_dim=None):
+        super().__init__(prior_type, output_dim)
+
+    def fit(self, X, Y, Xtest=None, Ytest=None, Ystd=None, **kwargs):
+        lik = Bernoulli()
+        return self._fit(X, Y, lik, Xtest, Ytest, Ystd, **kwargs)
+
+    def predict(self, Xs):
+        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+        m = np.average(ms, 0)
+        v = np.average(vs + ms**2, 0) - m**2
+        return m, v
+
+    def calculate_density(self, Xs, Ys, ymean=0., ystd=1.):
+        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+        logps = norm.logpdf(np.repeat(Ys[None, :, :]*ystd, self.ARGS.num_posterior_samples, axis=0), ms*ystd, np.sqrt(vs)*ystd)
+        return logsumexp(logps, axis=0) - np.log(self.ARGS.num_posterior_samples)
+    
+    def calculate_accuracy(self, Xs, Ys, ymean=0., ystd=1.):
+        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+        print()
+        return 1
 
     def sample(self, Xs, S):
         ms, vs = self._predict(Xs, S)
