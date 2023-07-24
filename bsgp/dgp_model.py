@@ -6,9 +6,7 @@ import tensorflow_probability as tfp
 from .base_model import BaseModel
 from . import conditionals
 from .utils import get_rand
-from .utils import logdet_jacobian
-from .utils import commutation_matrix
-from .utils import horseshoe_log_prob
+from .prior import logdet_jacobian, laplace_logprob, normal_logprob, horseshoe_logprob, matrix_wishart_logprob, matrix_invwishart_logprob
 import sys
 
 def set_seed(seed=0):
@@ -55,7 +53,7 @@ class Layer(object):
         self.precise_kernel = precise_kernel # LRBF-MOD
         self.prior_precision_type = prior_precision_type # LRBF-MOD
         self.prior_laplace_b = prior_laplace_b # LRBF-MOD
-        self.Kc = commutation_matrix(self.X.shape[1], self.X.shape[1])
+        #self.Kc = commutation_matrix(self.X.shape[1], self.X.shape[1])
         if prior_type == "strauss":
             self.pZ = Strauss(R=0.5)
 
@@ -75,15 +73,12 @@ class Layer(object):
         # self.U = tf.Variable(np.random.randn(self.M, self.outputs), dtype=tf.float64, trainable=False, name='U')
         self.Lm = None
 
-
     def conditional(self, X):
-
         mean, var, self.Lm = conditionals.conditional(X, self.Z, self.kernel, self.U, white=True, full_cov=self.full_cov, return_Lm=True)
-        
         if self.fixed_mean:
-            mean += tf.matmul(X, tf.cast(self.mean, tf.float64))
+            mean += tf.matmul(X, tf.cast(self.mean, tf.float64))    
         return mean, var
-
+    
     def prior_Z(self):
         if self.prior_type == "uniform":
             return 0.
@@ -109,34 +104,31 @@ class Layer(object):
         if self.precise_kernel:
             logdet = logdet_jacobian(self.kernel.L)
             if self.prior_precision_type == 'laplace':
-                # Laplace(0,b) prior on Λ
-                prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision(), ord=1) / self.prior_laplace_b) + logdet
-            elif self.prior_precision_type == 'laplace-diagnormal':
-                # Laplace(0,b) on Λ_ + Normal(0,1) on diag(Λ)
-                diagnormal = -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0
-                prior_precision = -tf.reduce_sum(tf.norm(self.kernel.precision_off_diagonals(), ord=1) / self.prior_laplace_b) + diagnormal + logdet
-            elif self.prior_precision_type == 'horseshoe-diagnormal':
-                # HS(λ) on Λ_ + Normal(0,1) on diag(Λ)
+                # Laplace(Λ|0,b)
+                prior_precision = laplace_logprob(self.kernel.precision(), self.prior_laplace_b) + logdet
+            elif self.prior_precision_type == 'laplace+diagnormal':
+                # Laplace(Λ_|0,b) + Normal(diagonal(Λ)|0,1)
+                prior_precision = laplace_logprob(self.kernel.precision_off_diagonals(), self.prior_laplace_b) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
+            elif self.prior_precision_type == 'horseshoe+diagnormal':
+                # HS(Λ_|λ) + Normal(diagonal(Λ)|0,1)
                 # X ~ HS(λ) -> X ~ N(0,λσ), σ ~ C+(0,1)
                 # [TensorflowProbability implementation]
                 hs = tfp.distributions.Horseshoe(scale=1)
                 diagnormal = -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0
-                precision_off_diagonals_loghorseshoe = horseshoe_log_prob(hs, self.kernel.precision_off_diagonals_prot())
+                precision_off_diagonals_loghorseshoe = horseshoe_logprob(hs, self.kernel.precision_off_diagonals_prot())
                 prior_precision =  precision_off_diagonals_loghorseshoe + diagnormal + logdet
-                #tf.print({'precision_off_diagonals_loghorseshoe': precision_off_diagonals_loghorseshoe, 'diagnormal': diagnormal, 'logdet': logdet, 'prior_precision': precision_off_diagonals_loghorseshoe+diagnormal+logdet}, output_stream=sys.stderr)
-            elif self.prior_precision_type == 'diagnormal':
-                # Normal(0,1) prior on diag(Λ)
-                precision_diagonal = tf.linalg.tensor_diag_part(self.kernel.precision())
-                prior_precision = -tf.reduce_sum(tf.square(precision_diagonal)) / 2.0 + logdet
+            elif self.prior_precision_type == 'wishart':
+                prior_precision = matrix_wishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
+            elif self.prior_precision_type == 'invwishart':
+                prior_precision = matrix_invwishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
             else:
-                # Uninformative prior on Λ
-                prior_precision = 0
+                # Uninformative prior: Normal(L|0,1)
+                prior_precision = normal_logprob(self.kernel.L)
             prior_hyper = prior_precision + prior_kernel_logvariance
         else:
             # Logormal(0,1) prior on log-lengthscales
             prior_hyper = -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 + prior_kernel_logvariance
 
-        # return -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 - tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0 LRBF-MOD
         return prior_hyper
 
     def prior(self):
@@ -235,7 +227,6 @@ class DGP(BaseModel):
         except AttributeError:
             self.session.run(init_op)
 
-
     def predict_y(self, X, S, posterior=True):
         # assert S <= len(self.posterior_samples)
         ms, vs = [], []
@@ -245,6 +236,7 @@ class DGP(BaseModel):
             m, v = self.session.run((self.y_mean, self.y_var), feed_dict=feed_dict)
             ms.append(m)
             vs.append(v)
+
         return np.stack(ms, 0), np.stack(vs, 0)
 
     def predict_f_samples(self, X, S):

@@ -265,7 +265,7 @@ if __name__ == '__main__':
     parser.add_argument('--step_size', type=float, default=0.01)
     parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF, 2: BOTH)
     parser.add_argument('--kfold', type=int, default=-1) # Number of folds for k-fold cv
-    parser.add_argument('--prior_precision_type', choices=['laplace','laplace-diagnormal', 'horseshoe-diagnormal', 'diagnormal'], default=None) # Prior on kernel precision matrix
+    parser.add_argument('--prior_precision_type', choices=['laplace','laplace-diagnormal', 'horseshoe-diagnormal', 'diagnormal', 'globnormal'], default=None) # Prior on kernel precision matrix
     parser.add_argument('--prior_laplace_b', type=float, default=0.01) # b parameter of Laplace(0,b) prior on precision matrix
 
     args = parser.parse_args()

@@ -53,11 +53,11 @@ class Bernoulli(object):
     def conditional_variance(self, F):
         p = self.conditional_mean(F)
         return p - tf.square(p)
-
+    
     def predict_density(self, Fmu, Fvar, Y):
         p = self.predict_mean_and_var(Fmu, Fvar)[0]
         return self.logdensity(Y, p)
-
+    
     def predict_mean_and_var(self, Fmu, Fvar):
         if self.invlink is inv_probit:
             p = inv_probit(Fmu / tf.sqrt(1 + Fvar))

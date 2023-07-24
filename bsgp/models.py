@@ -125,6 +125,10 @@ class RegressionModel(Model):
         logps = norm.logpdf(np.repeat(Ys[None, :, :]*ystd, self.ARGS.num_posterior_samples, axis=0), ms*ystd, np.sqrt(vs)*ystd)
         return logsumexp(logps, axis=0) - np.log(self.ARGS.num_posterior_samples)
 
+    def calculate_rmse(self, Xs, Ys, ymean=0., ystd=1.):
+        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+        return np.mean((np.repeat(Ys[None, :, :]*ystd, self.ARGS.num_posterior_samples, axis=0) - ms*ystd)**2, axis=0)**0.5
+    
     def sample(self, Xs, S):
         ms, vs = self._predict(Xs, S)
         return ms + vs**0.5 * np.random.randn(*ms.shape)

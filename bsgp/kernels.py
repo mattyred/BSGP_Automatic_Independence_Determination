@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from .utils import get_lower_triangular_from_diag, get_lower_triangular_uniform_random
 import tensorflow_probability as tfp
+import scipy
 
 class Kernel(object):
     """
@@ -263,7 +264,7 @@ class FullPrecisionRBF(Kernel):
         self.L = tf.Variable(L, name='L', dtype=tf.float64)
         self.logvariance = tf.Variable(np.log(self._v), dtype=tf.float64, name='log_variance', trainable=False)
         self.variance = tf.exp(self.logvariance)
-
+    @tf.function
     def K(self, X, X2=None):
         """
             X: matrix NxD
@@ -275,7 +276,7 @@ class FullPrecisionRBF(Kernel):
             X2 = X
         N1 = tf.squeeze(tf.shape(X)[:-1])
         N2 = tf.squeeze(tf.shape(X2)[:-1])
-        Lambda = self.precision() # recover UᵀU
+        Lambda = self.precision() # recover LLᵀ
 
         # compute z, z2
         z = self._z(X, Lambda) # N1x1 array
