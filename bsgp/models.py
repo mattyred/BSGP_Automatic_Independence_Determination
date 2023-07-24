@@ -127,7 +127,7 @@ class RegressionModel(Model):
 
     def calculate_rmse(self, Xs, Ys, ymean=0., ystd=1.):
         ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
-        return np.mean((np.repeat(Ys[None, :, :]*ystd, self.ARGS.num_posterior_samples, axis=0) - ms*ystd)**2, axis=0)**0.5
+        return np.mean((np.repeat(Ys[None, :, :]*ystd, self.ARGS.num_posterior_samples, axis=0) - ms*ystd)**2, axis=0)**0.5 / ystd
     
     def sample(self, Xs, S):
         ms, vs = self._predict(Xs, S)

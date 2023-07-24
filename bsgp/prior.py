@@ -30,7 +30,7 @@ def matrix_wishart_logprob(L, P):
 def matrix_invwishart_logprob(L, P):
     L = tfp.math.fill_triangular(L)
     n = L.shape[0]
-    return -(2*n + 1) * tf.math.reduce_sum(tf.math.log(tf.linalg.tensor_diag_part(tf.math.maximum(tf.cast(1e-8, tf.float64),tf.math.abs(L))))) - tf.linalg.trace(tf.linalg.inv(P)) / 2
+    return -(2*n + 1) * tf.math.reduce_sum(tf.math.log(tf.linalg.tensor_diag_part(tf.math.maximum(tf.cast(1e-8, tf.float64),tf.math.abs(L))))) - tf.linalg.trace(tf.linalg.inv(P)) / 2.0
 
 def laplace_logprob(P, b=0.01):
     return -tf.reduce_sum(tf.norm(P, ord=1) / b)
