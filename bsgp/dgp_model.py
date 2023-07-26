@@ -123,7 +123,7 @@ class Layer(object):
                 prior_precision = matrix_invwishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
             else:
                 # Uninformative prior: Normal(L|0,1)
-                prior_precision = normal_logprob(self.kernel.L)
+                prior_precision = normal_logprob(self.kernel.precision()) + logdet
             prior_hyper = prior_precision + prior_kernel_logvariance
         else:
             # Logormal(0,1) prior on log-lengthscales

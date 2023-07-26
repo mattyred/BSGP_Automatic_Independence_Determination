@@ -264,7 +264,7 @@ class FullPrecisionRBF(Kernel):
         self.L = tf.Variable(L, name='L', dtype=tf.float64)
         self.logvariance = tf.Variable(np.log(self._v), dtype=tf.float64, name='log_variance', trainable=False)
         self.variance = tf.exp(self.logvariance)
-    @tf.function
+
     def K(self, X, X2=None):
         """
             X: matrix NxD

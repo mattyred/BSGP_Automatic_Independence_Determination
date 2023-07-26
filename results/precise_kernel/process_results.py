@@ -7,7 +7,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import argparse
 
-def process_results_onefold(filepath=None, dict=None, precise_kernel=0, invsquare=False, d=6):
+def process_results_onefold(filepath=None, dict=None, precise_kernel=0, invsquare=False, d=6, rmse=True):
     #results = pd.read_json(filepath)
     if dict is None: 
         with open(filepath) as f:
@@ -17,7 +17,7 @@ def process_results_onefold(filepath=None, dict=None, precise_kernel=0, invsquar
     n_samples = len(results['posterior_samples_kern_logvar'])
     posterior_samples_kerlogvar = np.array(results['posterior_samples_kern_logvar'])
     test_mnll = results['test_mnll']
-    test_rmse = results['test_rmse']
+    test_rmse = results['test_rmse'] if rmse else None
     X_train_indices = np.array(results['X_train_indices'])
     X_test_indices = np.array(results['X_test_indices'])
     if precise_kernel:
@@ -35,7 +35,7 @@ def process_results_onefold(filepath=None, dict=None, precise_kernel=0, invsquar
                 precisions_merged[i, j] = [mat[i, j] for mat in precisions_list]
                 precisions_merged_mean[i, j] = np.mean(precisions_merged[i, j])
                 precisions_merged_var[i, j] = np.var(precisions_merged[i, j])
-        processed_results = {'precisions_merged': precisions_merged, 'precisions_merged_mean': precisions_merged_mean, 'precisions_merged_var': precisions_merged_var, 'posterior_samples_kerlogvar': posterior_samples_kerlogvar, 'test_mnll': test_mnll, 'test_rmse': test_rmse, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices}
+        processed_results = {'precisions_merged': precisions_merged, 'precisions_merged_mean': precisions_merged_mean, 'precisions_merged_var': precisions_merged_var, 'posterior_samples_kerlogvar': posterior_samples_kerlogvar, 'test_mnll': test_mnll, 'test_rmse': test_rmse if rmse else None, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices}
         return processed_results
     else:
         posterior_samples_loglengthscales = [np.array(results['posterior_samples_loglengthscales'][i]) for i in range(n_samples)]
@@ -54,10 +54,10 @@ def process_results_onefold(filepath=None, dict=None, precise_kernel=0, invsquar
                 if i==j:
                     lengthscales_merged_mean.append(np.mean(lengthscales_merged[i, j]))
                     lengthscales_merged_var.append(np.var(lengthscales_merged[i, j]))
-        processed_results = {'lengthscales_merged': lengthscales_merged, 'lengthscales_merged_mean': lengthscales_merged_mean, 'lengthscales_merged_var': lengthscales_merged_var, 'posterior_samples_kerlogvar': posterior_samples_kerlogvar, 'test_mnll': test_mnll, 'test_rmse':  test_rmse, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices}
+        processed_results = {'lengthscales_merged': lengthscales_merged, 'lengthscales_merged_mean': lengthscales_merged_mean, 'lengthscales_merged_var': lengthscales_merged_var, 'posterior_samples_kerlogvar': posterior_samples_kerlogvar, 'test_mnll': test_mnll, 'test_rmse':  test_rmse if rmse else None, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices}
         return processed_results
 
-def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=False, d=6):
+def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=False, d=6, rmse=True):
     #results_kfold = pd.read_json(filepath)
     with open(filepath) as f:
         results_kfold = json.load(f)
@@ -87,7 +87,7 @@ def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=Fa
           'posterior_samples_U': results_kfold['posterior_samples_U'][k],
           'posterior_samples_Z': results_kfold['posterior_samples_Z'][k],
           'test_mnll': results_kfold['test_mnll'][k],
-          'test_rmse': results_kfold['test_rmse'][k],
+          'test_rmse': results_kfold['test_rmse'][k] if rmse else None,
           'X_train_indices': results_kfold['X_train_indices'][k],
           'X_test_indices': results_kfold['X_test_indices'][k]
       }
@@ -97,7 +97,7 @@ def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=Fa
       var_kfold.append(processed_results['precisions_merged_var']) if precise_kernel else var_kfold.append(processed_results['lengthscales_merged_var'])
       kerlogvar_kfold.append(processed_results['posterior_samples_kerlogvar'])
       test_mnll_kfold.append(processed_results['test_mnll'])
-      test_rmse_kfold.append(processed_results['test_rmse'])
+      test_rmse_kfold.append(processed_results['test_rmse']) if rmse else None
       X_train_indices_kfold.append(processed_results['X_train_indices'])
       X_test_indices_kfold.append(processed_results['X_test_indices'])
     mean_over_kfold  = np.mean(np.array(mean_kfold), axis=0)
@@ -117,7 +117,7 @@ def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=Fa
         processed_results_kfold['lengthscales_var_over_kfold'] = var_over_kfold
     processed_results_kfold['posterior_samples_kerlogvar_kfold'] = kerlogvar_kfold
     processed_results_kfold['test_mnll'] = test_mnll_kfold
-    processed_results_kfold['test_rmse'] = test_rmse_kfold
+    processed_results_kfold['test_rmse'] = test_rmse_kfold if rmse else None
     processed_results_kfold['X_train_indices_kfold'] = X_train_indices_kfold
     processed_results_kfold['X_test_indices_kfold'] = X_test_indices_kfold
     return processed_results_kfold
