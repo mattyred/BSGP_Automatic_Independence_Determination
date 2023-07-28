@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from .utils import get_lower_triangular_from_diag, get_lower_triangular_uniform_random
 import tensorflow_probability as tfp
+import gpflow
 import scipy
 
 class Kernel(object):
@@ -249,18 +250,20 @@ class SquaredExponential(Stationary):
     def K_r2(self, r2):
         return self.variance * tf.exp(-r2 / 2.)
     
-class FullPrecisionRBF(Kernel):  
+
+class FullPrecisionRBF(gpflow.kernels.Kernel):  
 
     def __init__(self, **kwargs):
         randomized = kwargs["randomized"]
         self.d = kwargs["d"]
+        self.input_dim = self.d
         self.prior_precision_info = kwargs["prior_precision_info"]
         self._v = kwargs["variance"]
         if not randomized:
             L = get_lower_triangular_from_diag(self.d)
         else:
             L = get_lower_triangular_uniform_random(self.d)
-        super().__init__(input_dim=self.d)
+        super().__init__()#super().__init__(input_dim=self.d)
         self.L = tf.Variable(L, name='L', dtype=tf.float64)
         self.logvariance = tf.Variable(np.log(self._v), dtype=tf.float64, name='log_variance', trainable=False)
         self.variance = tf.exp(self.logvariance)
@@ -294,6 +297,9 @@ class FullPrecisionRBF(Kernel):
         exp_arg = zcol - 2*XX2LambdaT + zrow
         Kxx = tf.math.exp(-0.5 * exp_arg)
         return self.variance * Kxx
+    
+    def K_diag(self, X):
+        return tf.fill(tf.shape(X)[:-1], tf.squeeze(self.variance))
     
     def Kdiag(self, X):
         return tf.fill(tf.shape(X)[:-1], tf.squeeze(self.variance))
@@ -332,3 +338,4 @@ class FullPrecisionRBF(Kernel):
             prior_precision_info_str
         ]
         return '\n'.join(str)
+

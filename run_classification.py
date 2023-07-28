@@ -73,6 +73,10 @@ def create_dataset(dataset, static, fold):
         #Y_test = (Y_test - Y_train_mean) / Y_train_std
         return X_train, Y_train, X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices
 
+def assign_pathname(filepath, dataset, precise_kernel):
+    p = filepath + dataset + '_'
+    return p + 'AID_results.json'  if precise_kernel else p + 'ARD_results.json'
+
 def save_results_onefold(filepath, onefold_data, precise_kernel):
     results = dict()
     results['model'] = args.model
@@ -83,18 +87,17 @@ def save_results_onefold(filepath, onefold_data, precise_kernel):
     results['fold'] = args.fold
     results['dataset'] = args.dataset
     results['test_mnll'] = onefold_data['test_mnll']
+    results['test_accuracy'] = onefold_data['test_accuracy']
     results['precise_kernel'] = precise_kernel
 
-    #filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
+    jsonfilepath = assign_pathname(filepath, args.dataset, precise_kernel)
     if precise_kernel:
         results['prior_precision_type'] = args.prior_precision_type
         if args.prior_precision_type == 'laplace' or args.prior_precision_type == 'laplace-diagnormal':
             results['prior_laplace_b'] = args.prior_laplace_b
-        jsonfilepath = filepath + 'LRBF_results.json'
         results['posterior_samples_kern_L'] = onefold_data['trained_model'].posterior_samples_kern_L
     else:
-        jsonfilepath = filepath + 'ARD_results.json'
         results['posterior_samples_loglengthscales'] = onefold_data['trained_model'].posterior_samples_kern_L
     results['posterior_samples_kern_logvar'] = onefold_data['trained_model'].posterior_samples_kern_logvar
     results['posterior_samples_U'] = onefold_data['trained_model'].posterior_samples_U
@@ -117,21 +120,18 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     #results['test_mnll'] = np.mean(results['test_mnll'])
     results['precise_kernel'] = precise_kernel
 
-    #filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
-
+    jsonfilepath = assign_pathname(filepath, args.dataset, precise_kernel)
     # Save kernel precision matrices
     if precise_kernel == 1:
         results['prior_precision_type'] = args.prior_precision_type
         if args.prior_precision_type == 'laplace' or args.prior_precision_type == 'laplace-diagnormal':
             results['prior_laplace_b'] = args.prior_laplace_b
-        jsonfilepath = filepath + 'LRBF_results.json'
         results['posterior_samples_kern_L'] = []
         for i in range(args.kfold):
             model = kfold_data[i]['trained_model'] # model of fold 'i'
             results['posterior_samples_kern_L'].append(model.posterior_samples_kern_L)
     elif precise_kernel == 0:
-        jsonfilepath = filepath + 'ARD_results.json'
         results['posterior_samples_loglengthscales'] = []
         for i in range(args.kfold):
             model = kfold_data[i]['trained_model']
@@ -142,6 +142,7 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     results['posterior_samples_U'] = []
     results['posterior_samples_Z'] = []
     results['test_mnll'] = []
+    results['test_accuracy'] = []
     results['X_train_indices'] = []
     results['X_test_indices'] = []
     for i in range(args.kfold):
@@ -152,6 +153,7 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
         results['X_train_indices'].append(kfold_data[i]['X_train_indices'].tolist())
         results['X_test_indices'].append(kfold_data[i]['X_test_indices'].tolist())
         results['test_mnll'].append(kfold_data[i]['test_mnll'])
+        results['test_accuracy'].append(kfold_data[i]['test_accuracy'])
 
     with open(jsonfilepath, 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=4)
@@ -164,24 +166,24 @@ def main():
         X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices = create_dataset(args.dataset, True, args.fold)
         if args.minibatch_size > len(X_train): args.minibatch_size = len(X_train)
         if args.precise_kernel == 0 or args.precise_kernel == 1:
-            test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, 
+            test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, 
             Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel) 
-            onefold_data = {'test_mnll': test_mnll, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
+            onefold_data = {'test_mnll': test_mnll, 'test_accuracy': test_accuracy, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
             save_results_onefold(filepath, onefold_data, args.precise_kernel)
         else:
-            test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=0)
-            onefold_data = {'test_mnll': test_mnll, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
+            test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=0)
+            onefold_data = {'test_mnll': test_mnll, 'test_accuracy': test_accuracy, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
             save_results_onefold(filepath, onefold_data, False)
-            test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=1)
-            onefold_data = {'test_mnll': test_mnll, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
+            test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=1)
+            onefold_data = {'test_mnll': test_mnll, 'test_accuracy': test_accuracy, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
             save_results_onefold(filepath, onefold_data, True)
     else: # K-Fold Cross Validation
         kfold = KFold(n_splits=args.kfold, shuffle=True, random_state=0)
         X, Y, Y_mean, Y_std = create_dataset(args.dataset, False, args.fold) # get full dataset
         kfold_data_ker1 = []
         kfold_data_ker2 = []
-        current_fold_data_ker1 = {'test_mnll': 0, 'trained_model': 0} # For LRBF/ARD
-        current_fold_data_ker2 = {'test_mnll': 0, 'trained_model': 0} # When both LRBF and ARD are used
+        current_fold_data_ker1 = {'test_mnll': 0, 'test_accuracy': 0, 'trained_model': 0} # For LRBF/ARD
+        current_fold_data_ker2 = {'test_mnll': 0, 'test_accuracy': 0, 'trained_model': 0} # When both LRBF and ARD are used
         n_fold = 0
         for train_index, val_index in kfold.split(X):
             print('\n### Training fold: %d/%d ###'%(n_fold+1, args.kfold))
@@ -193,33 +195,36 @@ def main():
             Y_test = (Y_test - Y_train_mean) / Y_train_std
             # Train model on X_train, Y_train
             if args.precise_kernel == 0 or args.precise_kernel == 1: # ARD or LRBF
-                test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel)
+                test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel)
                 current_fold_data_ker1['test_mnll'] = test_mnll
+                current_fold_data_ker1['test_accuracy'] = test_accuracy
                 current_fold_data_ker1['trained_model'] = model
                 current_fold_data_ker1['X_train_indices'] = train_index
                 current_fold_data_ker1['X_test_indices'] = val_index
                 print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, args.precise_kernel, current_fold_data_ker1['test_mnll']))
             else: # ARD and LRBF
                 # ARD model
-                test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False) 
+                test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False) 
                 current_fold_data_ker1['test_mnll'] = test_mnll
+                current_fold_data_ker1['test_accuracy'] = test_accuracy
                 current_fold_data_ker1['trained_model'] = model
                 current_fold_data_ker1['X_train_indices'] = train_index
                 current_fold_data_ker1['X_test_indices'] = val_index
                 print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, 0, current_fold_data_ker1['test_mnll'])) 
                 # LRBF model
-                test_mnll, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=True) 
+                test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=True) 
                 current_fold_data_ker2['test_mnll'] = test_mnll
+                current_fold_data_ker2['test_accuracy'] = test_accuracy
                 current_fold_data_ker2['trained_model'] = model
                 current_fold_data_ker2['X_train_indices'] = train_index
                 current_fold_data_ker2['X_test_indices'] = val_index
                 print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, 1, current_fold_data_ker2['test_mnll']))
             # Store results current fold in 'kfold_data'
             if args.precise_kernel == 0 or args.precise_kernel == 1: # LRBF or ARD
-                kfold_data_ker1.append({'test_mnll': current_fold_data_ker1['test_mnll'], 'trained_model': current_fold_data_ker1['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': args.precise_kernel})
+                kfold_data_ker1.append({'test_mnll': current_fold_data_ker1['test_mnll'], 'test_accuracy': current_fold_data_ker1['test_accuracy'], 'trained_model': current_fold_data_ker1['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': args.precise_kernel})
             else:
-                kfold_data_ker1.append({'test_mnll': current_fold_data_ker1['test_mnll'], 'trained_model': current_fold_data_ker1['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': False})
-                kfold_data_ker2.append({'test_mnll': current_fold_data_ker2['test_mnll'], 'trained_model': current_fold_data_ker2['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': True})
+                kfold_data_ker1.append({'test_mnll': current_fold_data_ker1['test_mnll'], 'test_accuracy': current_fold_data_ker1['test_accuracy'], 'trained_model': current_fold_data_ker1['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': False})
+                kfold_data_ker2.append({'test_mnll': current_fold_data_ker2['test_mnll'], 'test_accuracy': current_fold_data_ker2['test_accuracy'], 'trained_model': current_fold_data_ker2['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': True})
             n_fold += 1
             #current_fold_data_ker1['test_mnll'] =  current_fold_data_ker1['trained_model'] = 0
             #current_fold_data_ker2['test_mnll'] =  current_fold_data_ker2['trained_model'] = 0
@@ -247,8 +252,8 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     model.ARGS.prior_laplace_b = args.prior_laplace_b
     model.fit(X_train, Y_train, epsilon=args.step_size)
     test_mnll = -model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
-    test_acc = model.calculate_accuracy(X_test, Y_test, Y_train_mean, Y_train_std)
-    return test_mnll, model
+    test_accuracy = model.calculate_accuracy(X_test, Y_test, Y_train_mean, Y_train_std)
+    return test_mnll, test_accuracy, model
     # save_results_onefold(filepath, test_mnll, precise_kernel, model.posterior_samples_kern_L, model.posterior_samples_kern_logvar) # kerncov: L matrix for LBRF / lengthscales for ARD
 
 if __name__ == '__main__':
@@ -265,7 +270,7 @@ if __name__ == '__main__':
     parser.add_argument('--step_size', type=float, default=0.01)
     parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF, 2: BOTH)
     parser.add_argument('--kfold', type=int, default=-1) # Number of folds for k-fold cv
-    parser.add_argument('--prior_precision_type', choices=['laplace','laplace-diagnormal', 'horseshoe-diagnormal', 'diagnormal', 'globnormal'], default=None) # Prior on kernel precision matrix
+    parser.add_argument('--prior_precision_type', choices=['laplace','laplace+diagnormal', 'horseshoe+diagnormal', 'invwishart'], default=None) # Prior on kernel precision matrix
     parser.add_argument('--prior_laplace_b', type=float, default=0.01) # b parameter of Laplace(0,b) prior on precision matrix
 
     args = parser.parse_args()
