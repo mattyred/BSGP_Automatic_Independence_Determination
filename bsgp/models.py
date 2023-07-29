@@ -148,9 +148,10 @@ class ClassificationModel(Model):
         return m, v
 
     def calculate_density(self, Xs, Ys, ymean=0., ystd=1.):
+        # cross-entropy mnll for classification
         ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
-        logps = norm.logpdf(np.repeat(Ys[None, :, :], self.ARGS.num_posterior_samples, axis=0), ms, np.sqrt(vs))
-        return logsumexp(logps, axis=0) - np.log(self.ARGS.num_posterior_samples)
+        Ys_ = np.repeat(Ys[None, :, :], self.ARGS.num_posterior_samples, axis=0)
+        return np.mean(Ys_ * np.log(ms) + (1 - Ys_) * np.log(1 - ms))
     
     def calculate_accuracy(self, Xs, Ys, ymean=0., ystd=1.):
         ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)

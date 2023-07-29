@@ -189,10 +189,11 @@ def main():
             print('\n### Training fold: %d/%d ###'%(n_fold+1, args.kfold))
             X_train, X_test = X[train_index], X[val_index]
             Y_train, Y_test = Y[train_index], Y[val_index]
-            # Standardize data
+            # Standardize data (only regression)
             Y_train_mean, Y_train_std = Y_train.mean(0), Y_train.std(0) + 1e-9
-            Y_train = (Y_train - Y_train_mean) / Y_train_std
-            Y_test = (Y_test - Y_train_mean) / Y_train_std
+            #Y_train = (Y_train - Y_train_mean) / Y_train_std
+            #Y_test = (Y_test - Y_train_mean) / Y_train_std
+
             # Train model on X_train, Y_train
             if args.precise_kernel == 0 or args.precise_kernel == 1: # ARD or LRBF
                 test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel)
@@ -201,7 +202,7 @@ def main():
                 current_fold_data_ker1['trained_model'] = model
                 current_fold_data_ker1['X_train_indices'] = train_index
                 current_fold_data_ker1['X_test_indices'] = val_index
-                print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, args.precise_kernel, current_fold_data_ker1['test_mnll']))
+                print('Fold %d - precise kernel: %d - test MNLL: %.3f - test accuracy: %.3f' % (n_fold, args.precise_kernel, current_fold_data_ker1['test_mnll'], current_fold_data_ker1['test_accuracy']))
             else: # ARD and LRBF
                 # ARD model
                 test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False) 

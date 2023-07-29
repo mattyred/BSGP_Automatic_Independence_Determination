@@ -106,7 +106,7 @@ def process_results_kfold(filepath=None, kfold=3, precise_kernel=0, invsquare=Fa
         dict_fold_k['test_rmse'] = results_kfold['test_rmse'][k]
       else:
         dict_fold_k['test_accuracy'] = results_kfold['test_accuracy'][k]
-      processed_results = process_results_onefold(dict=dict_fold_k, precise_kernel=precise_kernel, invsquare=invsquare, d=d)
+      processed_results = process_results_onefold(dict=dict_fold_k, precise_kernel=precise_kernel, invsquare=invsquare, d=d, regression=regression)
       merged_kfold.append(processed_results['precisions_merged']) if precise_kernel else merged_kfold.append(processed_results['lengthscales_merged'])
       mean_kfold.append(processed_results['precisions_merged_mean']) if precise_kernel else mean_kfold.append(processed_results['lengthscales_merged_mean'])
       var_kfold.append(processed_results['precisions_merged_var']) if precise_kernel else var_kfold.append(processed_results['lengthscales_merged_var'])
