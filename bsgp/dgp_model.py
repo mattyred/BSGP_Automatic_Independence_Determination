@@ -72,9 +72,10 @@ class Layer(object):
         self.U = tf.Variable(np.zeros((self.M, self.outputs)), dtype=tf.float64, trainable=False, name='U')
         # self.U = tf.Variable(np.random.randn(self.M, self.outputs), dtype=tf.float64, trainable=False, name='U')
         self.Lm = None
-
+    @tf.function
     def conditional(self, X):
         mean, var, self.Lm = conditionals.conditional(X, self.Z, self.kernel, self.U, white=True, full_cov=self.full_cov, return_Lm=True)
+        #tf.print({'Lm': self.Lm}, output_stream=sys.stderr)
         if self.fixed_mean:
             mean += tf.matmul(X, tf.cast(self.mean, tf.float64))    
         return mean, var
@@ -112,11 +113,7 @@ class Layer(object):
             elif self.prior_precision_type == 'horseshoe+diagnormal':
                 # HS(Λ_|λ) + Normal(diagonal(Λ)|0,1)
                 # X ~ HS(λ) -> X ~ N(0,λσ), σ ~ C+(0,1)
-                # [TensorflowProbability implementation]
-                hs = tfp.distributions.Horseshoe(scale=1)
-                diagnormal = -tf.reduce_sum(tf.square(tf.linalg.tensor_diag_part(self.kernel.precision()))) / 2.0
-                precision_off_diagonals_loghorseshoe = horseshoe_logprob(hs, self.kernel.precision_off_diagonals_prot())
-                prior_precision =  precision_off_diagonals_loghorseshoe + diagnormal + logdet
+                prior_precision = horseshoe_logprob(self.kernel.precision_off_diagonals_prot(), 1) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
             elif self.prior_precision_type == 'wishart':
                 prior_precision = matrix_wishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
             elif self.prior_precision_type == 'invwishart':
@@ -130,8 +127,9 @@ class Layer(object):
             prior_hyper = -tf.reduce_sum(tf.square(self.kernel.loglengthscales)) / 2.0 + prior_kernel_logvariance
 
         return prior_hyper
-
+    @tf.function
     def prior(self):
+        #tf.print({'kern.P': self.kernel.precision()}, output_stream=sys.stderr) 
         return -tf.reduce_sum(tf.square(self.U)) / 2.0 + self.prior_hyper()  + self.prior_Z()
 
     def __str__(self):

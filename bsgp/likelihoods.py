@@ -3,8 +3,6 @@
 import tensorflow as tf
 import numpy as np
 from .quadrature import ndiagquad
-import sys
-from gpflow.likelihoods.scalar_discrete import Bernoulli
 
 class Gaussian(object):
     def logdensity(self, x, mu, var):
@@ -38,19 +36,55 @@ def inv_probit(x):
     return 0.5 * (1.0 + tf.math.erf(x / np.sqrt(2.0))) * (1 - 2 * jitter) + jitter
 
 
-class BernoulliCustom(Bernoulli):
-    def __init__(self, X):
-        self.X = X
-        super().__init__()
+class Bernoulli(object):
+    def __init__(self, invlink=inv_probit, **kwargs):
+        self.invlink = invlink
+        self.num_gauss_hermite_points = 20
+
+    def logdensity(self, x, p):
+        return tf.math.log(tf.where(tf.equal(x, 1), p, 1-p))
+
+    def logp(self, F, Y):
+        return self.logdensity(Y, self.invlink(F))
 
     def conditional_mean(self, F):
-        return super()._conditional_mean(self, self.X, F)
+        return self.invlink(F)
 
     def conditional_variance(self, F):
-        return super()._conditional_variance(self, self.X, F)
+        p = self.conditional_mean(F)
+        return p - tf.square(p)
 
     def predict_density(self, Fmu, Fvar, Y):
-        return super()._predict_log_density(self, self.X, Fmu, Fvar, Y)
+        p = self.predict_mean_and_var(Fmu, Fvar)[0]
+        return self.logdensity(Y, p)
 
     def predict_mean_and_var(self, Fmu, Fvar):
-        return super()._predict_mean_and_var(self, self.X, Fmu, Fvar)
+        if self.invlink is inv_probit:
+            p = inv_probit(Fmu / tf.sqrt(1 + Fvar))
+            return p, p - tf.square(p)
+        else:
+            # for other invlink, use quadrature
+            integrand2 = lambda *X: self.conditional_variance(*X) + tf.square(self.conditional_mean(*X))
+            E_y, E_y2 = ndiagquad([self.conditional_mean, integrand2],
+                                  self.num_gauss_hermite_points,
+                                  Fmu, Fvar)
+            V_y = E_y2 - tf.square(E_y)
+            return E_y, V_y
+
+    def variational_expectations(self, Fmu, Fvar, Y):
+        r"""
+        Compute the expected log density of the datasets, given a Gaussian
+        distribution for the function values.
+
+        if
+            q(f) = N(Fmu, Fvar)
+
+        and this object represents
+
+            p(y|f)
+
+        then this method computes
+
+           \int (\log p(y|f)) q(f) df.
+        """
+        return ndiagquad(self.logp, self.num_gauss_hermite_points, Fmu, Fvar, Y=Y)

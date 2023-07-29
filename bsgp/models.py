@@ -5,8 +5,7 @@ from scipy.stats import norm
 from scipy.special import logsumexp
 from .kernels import SquaredExponential as BgpSE
 from .kernels import FullPrecisionRBF as BgpFullRBF
-from .likelihoods import Gaussian, BernoulliCustom
-from gpflow.likelihoods.scalar_discrete import Bernoulli
+from .likelihoods import Gaussian, Bernoulli
 import tensorflow as tf
 
 PRIORS = ['uniform', 'normal', 'determinantal', 'strauss']
@@ -139,7 +138,7 @@ class ClassificationModel(Model):
         super().__init__(prior_type, output_dim)
 
     def fit(self, X, Y, Xtest=None, Ytest=None, Ystd=None, **kwargs):
-        lik = Bernoulli(X)
+        lik = Bernoulli()
         return self._fit(X, Y, lik, Xtest, Ytest, Ystd, **kwargs)
 
     def predict(self, Xs):

@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
+
 def logdet_jacobian(L, eps=1e-6):
     L = tfp.math.fill_triangular(L, upper=False)
     n = L.shape[0]
@@ -8,16 +9,12 @@ def logdet_jacobian(L, eps=1e-6):
     exps = tf.cast(tf.reverse(tf.range(n) + 1, axis=[0]), dtype=L.dtype)
     return tf.cast(n*tf.math.log(2.0), dtype=L.dtype) + tf.reduce_sum(tf.math.multiply(exps,tf.math.log(tf.math.abs(diag_L)))) #tf.math.log(tf.math.abs((2.0**n) * tf.reduce_prod(tf.pow(diag_L,exps))))
 
-def horseshoe_logprob(hs, X):
+def horseshoe_logprob(X, scale):
+    # [TensorflowProbability implementation]
+    hs = tfp.distributions.Horseshoe(scale=scale)
     X = tf.cast(X, dtype=tf.float32) # to be input of hs.log_prob
-    #tf.print({'X': X}, output_stream=sys.stderr)
-    #X = X + 1e-1 #tf.where(X == 0, 1e-1, X)
-    X = tf.boolean_mask(X, tf.not_equal(X, 0))
-    hs_log_prob = hs.log_prob(X) # remove 0 elements
-    #tf.print({'X': hs_log_prob, 'hs_log_prob': tf.reduce_sum(tf.cast(hs_log_prob, dtype=tf.float64))}, output_stream=sys.stderr)
-    #hs_log_prob = tf.where(tf.math.is_inf(hs_log_prob), hs.log_prob(0.1), hs_log_prob)
-    #tf.print({'hs_log_prob_noinf': tf.cast(hs_log_prob, dtype=tf.float64)}, output_stream=sys.stderr)
-    return tf.reduce_sum(tf.cast(hs_log_prob, dtype=tf.float64)) # to be input of reduce_sum
+    hs_log_prob = hs.log_prob(X) 
+    return tf.reduce_sum(tf.cast(hs_log_prob, dtype=tf.float64))
 
 def matrix_normal_logprob(X):
     return -0.5 * tf.linalg.trace(tf.matmul(X, tf.transpose(X)))
