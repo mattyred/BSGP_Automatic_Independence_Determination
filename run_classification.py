@@ -250,7 +250,7 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     logger.info('Number of inducing points: %d' % model.ARGS.num_inducing)
     model.ARGS.precise_kernel = precise_kernel 
     model.ARGS.prior_precision_type = args.prior_precision_type
-    model.ARGS.prior_laplace_b = args.prior_laplace_b
+    model.ARGS.prior_precision_parameters = {'prior_laplace_b':  args.prior_laplace_b, 'prior_normal_mean':  args.prior_normal_mean, 'prior_normal_variance': args.prior_normal_variance, 'prior_horseshoe_globshrink': args.prior_horseshoe_globshrink}
     model.fit(X_train, Y_train, epsilon=args.step_size)
     test_mnll = -model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
     test_accuracy = model.calculate_accuracy(X_test, Y_test, Y_train_mean, Y_train_std)
@@ -271,8 +271,14 @@ if __name__ == '__main__':
     parser.add_argument('--step_size', type=float, default=0.01)
     parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF, 2: BOTH)
     parser.add_argument('--kfold', type=int, default=-1) # Number of folds for k-fold cv
-    parser.add_argument('--prior_precision_type', choices=['laplace','laplace+diagnormal', 'horseshoe+diagnormal', 'invwishart'], default=None) # Prior on kernel precision matrix
-    parser.add_argument('--prior_laplace_b', type=float, default=0.01) # b parameter of Laplace(0,b) prior on precision matrix
+    parser.add_argument('--prior_precision_type', choices=['normal', 'laplace','laplace+diagnormal', 'horseshoe+diagnormal', 'wishart', 'invwishart'], default='normal') # Prior on kernel precision matrix
+    # Laplace prior
+    parser.add_argument('--prior_laplace_b', type=float, default=0.01)
+    # Default prior (Normal)
+    parser.add_argument('--prior_normal_mean', type=float, default=0)
+    parser.add_argument('--prior_normal_variance', type=float, default=1)
+    # Horseshoe prior
+    parser.add_argument('--prior_horseshoe_globshrink', type=float, default=0.1)
 
     args = parser.parse_args()
 

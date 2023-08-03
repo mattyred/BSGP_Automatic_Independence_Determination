@@ -27,7 +27,7 @@ class Model(object):
             logdir = '/tmp/'
             precise_kernel = False # LRBF-MOD
             prior_precision_type = None # LRBF-MOD
-            prior_laplace_b = None # LRBF-MOD
+            prior_precision_parameters = None
 
         self.ARGS = ARGS
         self.model = None
@@ -47,7 +47,7 @@ class Model(object):
             for i in range(self.ARGS.n_layers):
                 output_dim = 196 if i >= 1 and X.shape[1] > 700 else X.shape[1]
                 # kerns.append(BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)) # LRBF-MOD
-                prior_precision_info = {'type': self.ARGS.prior_precision_type, 'hparams': self.ARGS.prior_laplace_b}
+                prior_precision_info = {'type': self.ARGS.prior_precision_type, 'parameters': self.ARGS.prior_precision_parameters}
                 kernel = BgpFullRBF(variance=0.1, randomized=False, d=output_dim, prior_precision_info=prior_precision_info) if self.ARGS.precise_kernel else BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)
                 kerns.append(kernel)
 
@@ -59,7 +59,7 @@ class Model(object):
                              full_cov=self.ARGS.full_cov,
                              prior_type=self.ARGS.prior_type, 
                              prior_precision_type=self.ARGS.prior_precision_type,
-                             prior_laplace_b = self.ARGS.prior_laplace_b,
+                             prior_precision_parameters = self.ARGS.prior_precision_parameters,
                              output_dim=self.output_dim,
                              **kwargs)
             print(self.model)

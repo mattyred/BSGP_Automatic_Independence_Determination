@@ -2,6 +2,15 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 
+def _integral_function_approx(u):
+    gamma = tf.constant(0.5772156649015328606, dtype=tf.float64) # Euler's constant
+    G = tf.math.exp(-gamma)
+    b = tf.math.sqrt(2*(1 - G) / (G*(2-G)))
+    hinf = ((1-G)*(tf.math.square(G) - 6*G + 12)) / (3*G*tf.math.square(2-G)*b)
+    q = (20/47)*tf.math.pow(u, tf.cast(tf.math.sqrt(31/26), dtype=tf.float64))
+    h = 1/(1+u*tf.math.sqrt(u)) + hinf*q/(1+q)
+    return (tf.math.exp(-u)*tf.math.log((1 + G/u - (1-G)/tf.square(h+b*u)))) / (G + (1-G)*tf.math.exp(-u/(1-G)))
+
 def logdet_jacobian(L, eps=1e-6):
     L = tfp.math.fill_triangular(L, upper=False)
     n = L.shape[0]
@@ -10,11 +19,8 @@ def logdet_jacobian(L, eps=1e-6):
     return tf.cast(n*tf.math.log(2.0), dtype=L.dtype) + tf.reduce_sum(tf.math.multiply(exps,tf.math.log(tf.math.abs(diag_L)))) #tf.math.log(tf.math.abs((2.0**n) * tf.reduce_prod(tf.pow(diag_L,exps))))
 
 def horseshoe_logprob(X, scale):
-    # [TensorflowProbability implementation]
-    hs = tfp.distributions.Horseshoe(scale=scale)
-    X = tf.cast(X, dtype=tf.float32) # to be input of hs.log_prob
-    hs_log_prob = hs.log_prob(X) 
-    return tf.reduce_sum(tf.cast(hs_log_prob, dtype=tf.float64))
+    u = tf.square(X) / 2*scale**2
+    return tf.reduce_sum(u + tf.math.log(_integral_function_approx(u+1e-6)))
 
 def matrix_normal_logprob(X):
     return -0.5 * tf.linalg.trace(tf.matmul(X, tf.transpose(X)))
@@ -33,4 +39,4 @@ def laplace_logprob(P, b=0.01):
     return -tf.reduce_sum(tf.norm(P, ord=1) / b)
 
 def normal_logprob(X, m=0, v=1):
-    return -tf.reduce_sum(tf.square(X)) / 2.0
+    return -tf.reduce_sum(tf.square((X-m)/v)) / 2.0

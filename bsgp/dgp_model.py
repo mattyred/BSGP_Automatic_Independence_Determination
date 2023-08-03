@@ -44,7 +44,7 @@ class Strauss(object):
 
 
 class Layer(object):
-    def __init__(self, kern, precise_kernel, outputs, n_inducing, fixed_mean, X, full_cov, prior_type="uniform", prior_precision_type="laplace", prior_laplace_b=1): # uniform / normal / point
+    def __init__(self, kern, precise_kernel, outputs, n_inducing, fixed_mean, X, full_cov, prior_type="uniform", prior_precision_type="normal", prior_precision_parameters=None):
         self.inputs, self.outputs, self.kernel = kern.input_dim, outputs, kern
         self.M, self.fixed_mean = n_inducing, fixed_mean
         self.full_cov = full_cov
@@ -52,7 +52,7 @@ class Layer(object):
         self.X = X
         self.precise_kernel = precise_kernel # LRBF-MOD
         self.prior_precision_type = prior_precision_type # LRBF-MOD
-        self.prior_laplace_b = prior_laplace_b # LRBF-MOD
+        self.prior_precision_parameters = prior_precision_parameters
         #self.Kc = commutation_matrix(self.X.shape[1], self.X.shape[1])
         if prior_type == "strauss":
             self.pZ = Strauss(R=0.5)
@@ -98,7 +98,7 @@ class Layer(object):
 
         else: #
             raise Exception("Invalid prior type")
-
+    @tf.function
     def prior_hyper(self):
         # Lognormal(0,0.05) prior on kernel logvariance
         prior_kernel_logvariance =  -tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
@@ -106,21 +106,22 @@ class Layer(object):
             logdet = logdet_jacobian(self.kernel.L)
             if self.prior_precision_type == 'laplace':
                 # Laplace(Λ|0,b)
-                prior_precision = laplace_logprob(self.kernel.precision(), self.prior_laplace_b) + logdet
+                prior_precision = laplace_logprob(self.kernel.precision(), self.prior_precision_parameters['prior_laplace_b']) + logdet
             elif self.prior_precision_type == 'laplace+diagnormal':
                 # Laplace(Λ_|0,b) + Normal(diagonal(Λ)|0,1)
-                prior_precision = laplace_logprob(self.kernel.precision_off_diagonals(), self.prior_laplace_b) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
+                prior_precision = laplace_logprob(self.kernel.precision_off_diagonals(), self.prior_precision_parameters['prior_laplace_b']) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
             elif self.prior_precision_type == 'horseshoe+diagnormal':
                 # HS(Λ_|λ) + Normal(diagonal(Λ)|0,1)
                 # X ~ HS(λ) -> X ~ N(0,λσ), σ ~ C+(0,1)
-                prior_precision = horseshoe_logprob(self.kernel.precision_off_diagonals_prot(), 1) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
+                #tf.print({'hs': horseshoe_logprob(self.kernel.precision_off_diagonals(), 1)}, output_stream=sys.stderr)
+                prior_precision = horseshoe_logprob(self.kernel.precision_off_diagonals(), self.prior_precision_parameters['prior_horseshoe_globshrink']) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
             elif self.prior_precision_type == 'wishart':
                 prior_precision = matrix_wishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
             elif self.prior_precision_type == 'invwishart':
                 prior_precision = matrix_invwishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
             else:
-                # Uninformative prior: Normal(L|0,1)
-                prior_precision = normal_logprob(self.kernel.precision()) + logdet
+                # Uninformative prior: Normal(Λ|0,0.1)
+                prior_precision = normal_logprob(self.kernel.precision(), m=self.prior_precision_parameters['prior_normal_mean'],v=self.prior_precision_parameters['prior_normal_variance']) + logdet
             prior_hyper = prior_precision + prior_kernel_logvariance
         else:
             # Logormal(0,1) prior on log-lengthscales
@@ -169,7 +170,7 @@ class DGP(BaseModel):
         for layer in self.layers:
             layer.Lm = None
 
-    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='laplace', prior_laplace_b=1, full_cov=False, epsilon=0.01, mdecay=0.05,):
+    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='normal', prior_precision_parameters=None, full_cov=False, epsilon=0.01, mdecay=0.05,):
         self.n_inducing = n_inducing
         self.kernels = kernels
         self.likelihood = likelihood
@@ -186,7 +187,7 @@ class DGP(BaseModel):
         X_running = X.copy()
         for l in range(n_layers):
             outputs = self.kernels[l+1].input_dim if l+1 < n_layers else self.output_dim#Y.shape[1]
-            self.layers.append(Layer(self.kernels[l], precise_kernel, outputs, n_inducing, fixed_mean=(l+1 < n_layers), X=X_running, full_cov=full_cov if l+1<n_layers else False, prior_type=prior_type, prior_precision_type=prior_precision_type, prior_laplace_b=prior_laplace_b))
+            self.layers.append(Layer(self.kernels[l], precise_kernel, outputs, n_inducing, fixed_mean=(l+1 < n_layers), X=X_running, full_cov=full_cov if l+1<n_layers else False, prior_type=prior_type, prior_precision_type=prior_precision_type, prior_precision_parameters=prior_precision_parameters))
             X_running = np.matmul(X_running, self.layers[-1].mean)
 
         variables = []

@@ -325,12 +325,14 @@ class FullPrecisionRBF(gpflow.kernels.Kernel):
         Lambda = self.precision()
         return 'Variance: {}\nLambda: {}'.format(self.variance, Lambda)
     def __str__(self):
-        if self.prior_precision_info['type'] is not None:
+        if self.prior_precision_info['type'] != 'normal':
             prior_precision_info_str = ' Prior precision type = %s'%(self.prior_precision_info['type'])
-            if self.prior_precision_info['type'] == 'laplace' or self.prior_precision_info['type'] == 'laplace-diagnormal':
-                prior_precision_info_str +=  ' (b = %.2f)'%self.prior_precision_info['hparams']
+            if self.prior_precision_info['type'] == 'laplace' or self.prior_precision_info['type'] == 'laplace+diagnormal':
+                prior_precision_info_str +=  ' (b = %.2f)'%self.prior_precision_info['parameters']['prior_laplace_b']
+            elif self.prior_precision_info['type']  == 'horseshoe+diagnormal':
+                prior_precision_info_str +=  ' (glob_shrinkage = %.2f)'%self.prior_precision_info['parameters']['prior_horseshoe_globshrink']
         else:
-            prior_precision_info_str = ' Prior precision type = None' 
+            prior_precision_info_str = ' Prior precision type = normal ' + '(mean = %.2f, variance = %.2f)'%(self.prior_precision_info['parameters']['prior_normal_mean'], self.prior_precision_info['parameters']['prior_normal_variance'])
         str = [
             '======= Kernel: FullPrecisionRBF (param: LLᵀ)',
             # ' Input dim = %d' % self.input_dim,
