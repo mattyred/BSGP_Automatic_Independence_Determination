@@ -104,10 +104,7 @@ class Layer(object):
         prior_kernel_logvariance =  -tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
         if self.precise_kernel:
             logdet = logdet_jacobian(self.kernel.L)
-            if self.prior_precision_type == 'laplace':
-                # Laplace(Λ|0,b)
-                prior_precision = laplace_logprob(self.kernel.precision(), self.prior_precision_parameters['prior_laplace_b']) + logdet
-            elif self.prior_precision_type == 'laplace+diagnormal':
+            if self.prior_precision_type == 'laplace+diagnormal':
                 # Laplace(Λ_|0,b) + Normal(diagonal(Λ)|0,1)
                 prior_precision = laplace_logprob(self.kernel.precision_off_diagonals(), self.prior_precision_parameters['prior_laplace_b']) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
             elif self.prior_precision_type == 'horseshoe+diagnormal':
@@ -119,6 +116,8 @@ class Layer(object):
                 prior_precision = matrix_wishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
             elif self.prior_precision_type == 'invwishart':
                 prior_precision = matrix_invwishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
+            elif self.prior_precision_type == 'diagnormal':
+                prior_precision = normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision()), m=0, v=0.1) + logdet
             else:
                 # Uninformative prior: Normal(Λ|0,0.1)
                 prior_precision = normal_logprob(self.kernel.precision(), m=self.prior_precision_parameters['prior_normal_mean'],v=self.prior_precision_parameters['prior_normal_variance']) + logdet

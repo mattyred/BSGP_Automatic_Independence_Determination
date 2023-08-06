@@ -182,8 +182,8 @@ def main():
         X, Y, Y_mean, Y_std = create_dataset(args.dataset, False, args.fold) # get full dataset
         kfold_data_ker1 = []
         kfold_data_ker2 = []
-        current_fold_data_ker1 = {'test_mnll': 0, 'test_accuracy': 0, 'trained_model': 0} # For LRBF/ARD
-        current_fold_data_ker2 = {'test_mnll': 0, 'test_accuracy': 0, 'trained_model': 0} # When both LRBF and ARD are used
+        current_fold_data_ker1 = {'test_mnll': 0, 'test_accuracy': 0, 'trained_model': 0} # For AID/ARD
+        current_fold_data_ker2 = {'test_mnll': 0, 'test_accuracy': 0, 'trained_model': 0} # When both AID and ARD are used
         n_fold = 0
         for train_index, val_index in kfold.split(X):
             print('\n### Training fold: %d/%d ###'%(n_fold+1, args.kfold))
@@ -195,7 +195,7 @@ def main():
             #Y_test = (Y_test - Y_train_mean) / Y_train_std
 
             # Train model on X_train, Y_train
-            if args.precise_kernel == 0 or args.precise_kernel == 1: # ARD or LRBF
+            if args.precise_kernel == 0 or args.precise_kernel == 1: # ARD or AID
                 test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel)
                 current_fold_data_ker1['test_mnll'] = test_mnll
                 current_fold_data_ker1['test_accuracy'] = test_accuracy
@@ -203,7 +203,7 @@ def main():
                 current_fold_data_ker1['X_train_indices'] = train_index
                 current_fold_data_ker1['X_test_indices'] = val_index
                 print('Fold %d - precise kernel: %d - test MNLL: %.3f - test accuracy: %.3f' % (n_fold, args.precise_kernel, current_fold_data_ker1['test_mnll'], current_fold_data_ker1['test_accuracy']))
-            else: # ARD and LRBF
+            else: # ARD and AID
                 # ARD model
                 test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False) 
                 current_fold_data_ker1['test_mnll'] = test_mnll
@@ -212,7 +212,7 @@ def main():
                 current_fold_data_ker1['X_train_indices'] = train_index
                 current_fold_data_ker1['X_test_indices'] = val_index
                 print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, 0, current_fold_data_ker1['test_mnll'])) 
-                # LRBF model
+                # AID model
                 test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=True) 
                 current_fold_data_ker2['test_mnll'] = test_mnll
                 current_fold_data_ker2['test_accuracy'] = test_accuracy
@@ -221,14 +221,12 @@ def main():
                 current_fold_data_ker2['X_test_indices'] = val_index
                 print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, 1, current_fold_data_ker2['test_mnll']))
             # Store results current fold in 'kfold_data'
-            if args.precise_kernel == 0 or args.precise_kernel == 1: # LRBF or ARD
+            if args.precise_kernel == 0 or args.precise_kernel == 1: # AID or ARD
                 kfold_data_ker1.append({'test_mnll': current_fold_data_ker1['test_mnll'], 'test_accuracy': current_fold_data_ker1['test_accuracy'], 'trained_model': current_fold_data_ker1['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': args.precise_kernel})
             else:
                 kfold_data_ker1.append({'test_mnll': current_fold_data_ker1['test_mnll'], 'test_accuracy': current_fold_data_ker1['test_accuracy'], 'trained_model': current_fold_data_ker1['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': False})
                 kfold_data_ker2.append({'test_mnll': current_fold_data_ker2['test_mnll'], 'test_accuracy': current_fold_data_ker2['test_accuracy'], 'trained_model': current_fold_data_ker2['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': True})
             n_fold += 1
-            #current_fold_data_ker1['test_mnll'] =  current_fold_data_ker1['trained_model'] = 0
-            #current_fold_data_ker2['test_mnll'] =  current_fold_data_ker2['trained_model'] = 0
         # Store results of all folds
         if args.precise_kernel == 0 or args.precise_kernel == 1:
             save_results_kfold(filepath, kfold_data_ker1, args.precise_kernel)
@@ -255,7 +253,6 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     test_mnll = -model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
     test_accuracy = model.calculate_accuracy(X_test, Y_test, Y_train_mean, Y_train_std)
     return test_mnll, test_accuracy, model
-    # save_results_onefold(filepath, test_mnll, precise_kernel, model.posterior_samples_kern_L, model.posterior_samples_kern_logvar) # kerncov: L matrix for LBRF / lengthscales for ARD
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run regression experiment')
@@ -269,9 +266,9 @@ if __name__ == '__main__':
     parser.add_argument('--model', choices=['bsgp'], default='bsgp')
     parser.add_argument('--num_posterior_samples', type=int, default=512)
     parser.add_argument('--step_size', type=float, default=0.01)
-    parser.add_argument('--precise_kernel', type=int, default=0) # LRBF-MOD (0: ARD, 1: LRBF, 2: BOTH)
-    parser.add_argument('--kfold', type=int, default=-1) # Number of folds for k-fold cv
-    parser.add_argument('--prior_precision_type', choices=['normal', 'laplace','laplace+diagnormal', 'horseshoe+diagnormal', 'wishart', 'invwishart'], default='normal') # Prior on kernel precision matrix
+    parser.add_argument('--precise_kernel', type=int, default=0) 
+    parser.add_argument('--kfold', type=int, default=-1)
+    parser.add_argument('--prior_precision_type', choices=['normal', 'laplace+diagnormal', 'horseshoe+diagnormal', 'wishart', 'invwishart'], default='normal') # Prior on kernel precision matrix
     # Laplace prior
     parser.add_argument('--prior_laplace_b', type=float, default=0.01)
     # Default prior (Normal)
