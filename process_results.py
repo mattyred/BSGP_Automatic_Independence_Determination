@@ -29,7 +29,7 @@ def process_results_onefold(filepath=None, dict=None, invsquare=False):
     # AID kernel
     if precise_kernel:
         posterior_samples_L = [np.array(results['posterior_samples_kern_L'][i]) for i in range(n_samples)]
-        Pd = np.array(results['Pd'])
+        Pd = np.array(results['Pd']) if pca != -1 else None
         precisions_list = []
         precisions_rec_list = []
         for i in range(n_samples):
@@ -123,6 +123,7 @@ def process_results_kfold(filepath=None, invsquare=False):
           'prior_type': results_kfold['prior_type'],
           'fold': results_kfold['fold'],
           'dataset': results_kfold['dataset'],
+          'pca': results_kfold['pca'],
           'precise_kernel': results_kfold['precise_kernel'],
           #'prior_precision_type': results_kfold['prior_precision_type'],
            posterior_samples_kern_cov: results_kfold['posterior_samples_kern_L'][k] if precise_kernel else results_kfold['posterior_samples_loglengthscales'][k],
