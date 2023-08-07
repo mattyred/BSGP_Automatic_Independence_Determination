@@ -249,7 +249,7 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     logger.info('Number of inducing points: %d' % model.ARGS.num_inducing)
     model.ARGS.precise_kernel = precise_kernel 
     model.ARGS.prior_precision_type = args.prior_precision_type
-    model.ARGS.prior_precision_parameters = {'prior_laplace_b':  args.prior_laplace_b, 'prior_normal_mean':  args.prior_normal_mean, 'prior_normal_variance': args.prior_normal_variance, 'prior_horseshoe_globshrink': args.prior_horseshoe_globshrink}
+    model.ARGS.prior_precision_parameters = {'prior_laplace_b':  args.prior_laplace_b, 'prior_normal_mean':  args.prior_normal_mean, 'prior_normal_variance': args.prior_normal_variance, 'prior_horseshoe_globshrink': args.prior_horseshoe_globshrink, 'parametrization': args.prior_precision_select_param}
     model.fit(X_train, Y_train, epsilon=args.step_size)
     test_mnll = -model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
     test_rmse = model.calculate_rmse(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
@@ -269,7 +269,7 @@ if __name__ == '__main__':
     parser.add_argument('--step_size', type=float, default=0.01)
     parser.add_argument('--precise_kernel', type=int, default=0)
     parser.add_argument('--kfold', type=int, default=-1) 
-    parser.add_argument('--prior_precision_type', choices=['normal', 'laplace+diagnormal', 'horseshoe+diagnormal', 'wishart', 'invwishart', 'diagnormal'], default='normal') # Prior on kernel precision matrix
+    parser.add_argument('--prior_precision_type', choices=['normal', 'laplace+diagnormal', 'horseshoe+diagnormal', 'wishart', 'invwishart', 'laplace', 'horseshoe'], default='normal') # Prior on kernel precision matrix
     # Laplace prior
     parser.add_argument('--prior_laplace_b', type=float, default=0.01)
     # Default prior (Normal)
@@ -277,6 +277,8 @@ if __name__ == '__main__':
     parser.add_argument('--prior_normal_variance', type=float, default=1)
     # Horseshoe prior
     parser.add_argument('--prior_horseshoe_globshrink', type=float, default=0.1) 
+    # Prior on L or Λ
+    parser.add_argument('--prior_precision_select_param', choices=['Lambda', 'L'], default='Lambda')
 
     args = parser.parse_args()
 

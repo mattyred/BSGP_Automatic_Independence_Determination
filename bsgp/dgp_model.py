@@ -103,24 +103,39 @@ class Layer(object):
         # Lognormal(0,0.05) prior on kernel logvariance
         prior_kernel_logvariance =  -tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
         if self.precise_kernel:
-            logdet = logdet_jacobian(self.kernel.L)
-            if self.prior_precision_type == 'laplace+diagnormal':
+            # Define on which matrix the prior is placed: L or Λ
+            if self.prior_precision_parameters['parametrization'] == 'L':
+                logdet = 0
+                matrix_prior = self.kernel.L
+            elif self.prior_precision_parameters['parametrization'] == 'Lambda':
+                logdet = logdet_jacobian(self.kernel.L)
+                matrix_prior = self.kernel.precision()
+
+            #[1] Element-wise priors
+            if self.prior_precision_type == 'laplace':
+                # Laplace(L|0,b) or Laplace(Λ|0,b)
+                prior_precision = laplace_logprob(matrix_prior, self.prior_precision_parameters['prior_laplace_b']) + logdet
+            elif self.prior_precision_type == 'horseshoe':
+                # HS(L|λ) or HS(Λ|λ)
+                prior_precision = horseshoe_logprob(matrix_prior, self.prior_precision_parameters['prior_horseshoe_globshrink']) + logdet
+            elif self.prior_precision_type == 'normal':
+                # N(L|0,0.1) or N(Λ|0,0.1)
+                prior_precision = normal_logprob(matrix_prior, m=self.prior_precision_parameters['prior_normal_mean'],v=self.prior_precision_parameters['prior_normal_variance']) + logdet
+            elif self.prior_precision_type == 'laplace+diagnormal':
                 # Laplace(Λ_|0,b) + Normal(diagonal(Λ)|0,1)
                 prior_precision = laplace_logprob(self.kernel.precision_off_diagonals(), self.prior_precision_parameters['prior_laplace_b']) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
             elif self.prior_precision_type == 'horseshoe+diagnormal':
                 # HS(Λ_|λ) + Normal(diagonal(Λ)|0,1)
                 # X ~ HS(λ) -> X ~ N(0,λσ), σ ~ C+(0,1)
-                #tf.print({'hs': horseshoe_logprob(self.kernel.precision_off_diagonals(), 1)}, output_stream=sys.stderr)
                 prior_precision = horseshoe_logprob(self.kernel.precision_off_diagonals(), self.prior_precision_parameters['prior_horseshoe_globshrink']) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
+
+            #[2] Matrix-variate priors (only on Λ)
             elif self.prior_precision_type == 'wishart':
                 prior_precision = matrix_wishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
             elif self.prior_precision_type == 'invwishart':
                 prior_precision = matrix_invwishart_logprob(self.kernel.L, self.kernel.precision()) + logdet
-            elif self.prior_precision_type == 'diagnormal':
-                prior_precision = normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision()), m=0, v=0.1) + logdet
-            else:
-                # Uninformative prior: Normal(Λ|0,0.1)
-                prior_precision = normal_logprob(self.kernel.precision(), m=self.prior_precision_parameters['prior_normal_mean'],v=self.prior_precision_parameters['prior_normal_variance']) + logdet
+            
+            # Compute prior_hyper
             prior_hyper = prior_precision + prior_kernel_logvariance
         else:
             # Logormal(0,1) prior on log-lengthscales

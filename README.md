@@ -15,12 +15,13 @@ usage: run_regression.py [-h]
                          [--precise_kernel USE_AID_KERNEL {0,1,2}]
                          [--kfold NUM_K_FOLDS]
                          [--prior_precision_type {normal, laplace+diagnormal, horseshoe+diagnormal, wishart, invwishart}]
+                         [--prior_precision_select_param {L, Lambda}]
                          [--prior_laplace_b LAPLACE_B]
                          [--prior_normal_mean NORMAL_MEAN]
                          [--prior_normal_variance NORMAL_VARIANCE]
                          [--prior_horseshoe_globshrink HORSESHOE_GLOBAL_SHRINKAGE]
 
->> python3 run_regression.py --help
+>> python3 run_classification.py --help
 usage: [same arguments as for regression, choose a proper dataset]
 ```
 
