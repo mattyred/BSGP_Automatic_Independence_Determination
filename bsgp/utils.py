@@ -37,3 +37,11 @@ def get_lower_triangular_uniform_random(d):
 def commutation_matrix(m, n):
     w = np.arange(m * n).reshape((m, n), order="F").T.ravel(order="F")
     return np.eye(m * n)[w, :]
+
+def apply_pca(X, n_comp):
+    N = X.shape[0]
+    C = (1/N) * X.T @ X # N x N
+    A, P = np.linalg.eigh(C) # C = PAPᵀ
+    Pd = P[:, ::-1][:, 0:n_comp] # D x d
+    Z = X @ Pd # N x d
+    return Z, Pd

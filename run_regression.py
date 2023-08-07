@@ -27,6 +27,7 @@ import pandas as  pd
 import matplotlib.pyplot as plt
 import tensorflow_probability as tfp
 
+from bsgp.utils import apply_pca
 
 def next_path(path_pattern):
     i = 1
@@ -48,7 +49,7 @@ def set_seed(seed):
     np.random.seed(seed)
     tf.compat.v1.set_random_seed(seed)
 
-def create_dataset(dataset, static, fold):
+def create_dataset(dataset, static, pca, fold):
     dataset_path = ('./data/' + dataset + '.pth')
     logger.info('Loading dataset from %s' % dataset_path)
     dataset = TensorDataset(*torch.load(dataset_path))
@@ -68,10 +69,14 @@ def create_dataset(dataset, static, fold):
         Y_train = Y[X_train_indices]
         X_test = X[X_test_indices]
         Y_test = Y[X_test_indices]
+        Pd = None
+        if pca != -1:
+            X_train, Pd = apply_pca(X_train, pca) # fit_transform X_train
+            X_test = X_test @ Pd # transform X_test
         Y_train_mean, Y_train_std = Y_train.mean(0), Y_train.std(0) + 1e-9
         Y_train = (Y_train - Y_train_mean) / Y_train_std
         Y_test = (Y_test - Y_train_mean) / Y_train_std
-        return X_train, Y_train, X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices
+        return X_train, Y_train, X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices, Pd
 
 def assign_pathname(filepath, dataset, precise_kernel):
     p = filepath + dataset + '_'
@@ -86,6 +91,7 @@ def save_results_onefold(filepath, onefold_data, precise_kernel):
     results['prior_type'] = args.prior_type
     results['fold'] = args.fold
     results['dataset'] = args.dataset
+    results['pca'] = args.pca
     results['test_mnll'] = onefold_data['test_mnll']
     results['test_rmse'] = onefold_data['test_rmse']
     results['precise_kernel'] = precise_kernel
@@ -105,6 +111,7 @@ def save_results_onefold(filepath, onefold_data, precise_kernel):
     results['posterior_samples_Z'] = onefold_data['trained_model'].posterior_samples_Z
     results['X_train_indices'] = onefold_data['X_train_indices'].tolist()
     results['X_test_indices'] = onefold_data['X_test_indices'].tolist()
+    results['Pd'] = onefold_data['Pd'].tolist() if args.pca != -1 else None# list of D elements, each with len num_pca_components (each element is a row of Pd)
     with open(jsonfilepath, 'w', encoding='utf-8') as f:
         json.dump(results, f, ensure_ascii=False, indent=4)
 
@@ -166,22 +173,22 @@ def main():
     filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     if args.kfold == -1: # static Train/Test split
         print('\n### Static Train/Test split ###')
-        X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices = create_dataset(args.dataset, True, args.fold)
+        X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices, Pd = create_dataset(args.dataset, True, args.pca, args.fold)
         if args.minibatch_size > len(X_train): args.minibatch_size = len(X_train)
         if args.precise_kernel == 0 or args.precise_kernel == 1:
             test_mnll, test_rmse, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel) 
-            onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
+            onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices, 'Pd': Pd} 
             save_results_onefold(filepath, onefold_data, args.precise_kernel)
         else:
             test_mnll, test_rmse, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=0)
-            onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
+            onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices, 'Pd': Pd} 
             save_results_onefold(filepath, onefold_data, False)
             test_mnll, test_rmse, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=1)
-            onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices} 
+            onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices, 'Pd': Pd} 
             save_results_onefold(filepath, onefold_data, True)
     else: # K-Fold Cross Validation
         kfold = KFold(n_splits=args.kfold, shuffle=True, random_state=0)
-        X, Y, Y_mean, Y_std = create_dataset(args.dataset, False, args.fold) # get full dataset
+        X, Y, Y_mean, Y_std = create_dataset(args.dataset, False, args.pca, args.fold) # get full dataset
         kfold_data_ker1 = []
         kfold_data_ker2 = []
         current_fold_data_ker1 = {'test_mnll': 0, 'test_rmse': 0, 'trained_model': 0} # For AID/ARD
@@ -279,6 +286,8 @@ if __name__ == '__main__':
     parser.add_argument('--prior_horseshoe_globshrink', type=float, default=0.1) 
     # Prior on L or Λ
     parser.add_argument('--prior_precision_select_param', choices=['Lambda', 'L'], default='Lambda')
+    # PCA
+    parser.add_argument('--pca', type=int, default=-1)
 
     args = parser.parse_args()
 

@@ -44,7 +44,7 @@ usage: [same arguments as for regression, choose a proper dataset]
 | Laplace    | $p(\mathbf{\Lambda_{ij}}) = \mathcal{L}(m,b)$           | $m = 0$  <br /> --prior_laplace_b                  | $\log C - \frac{1}{b}\|\|\mathbf{\Lambda_{ij}} - m\|\|_1$                                                 |
 | Horseshoe  | $p(\mathbf{\Lambda_{ij}}) = \mathcal{HS}(\tau)$         | --prior_horseshoe_globshrink                       | $\log C + \frac{1}{2\tau^2}\mathbf{\Lambda_{ij}}^2 + \log E_1(\frac{1}{2\tau^2}\mathbf{\Lambda_{ij}}^2)$  |
 | Wishart    | $p(\mathbf{\Lambda}) = \mathcal{W}(\mathbf{V},K)$       | $K = D$ <br />  $\mathbf{V} = K^{-1}\mathbf{I}_D$  | $\log C - \sum_d{\log \|\mathbf{L}_{dd}\|} - \frac{1}{2}\text{Tr}[K\mathbf{\Lambda}]$                     |
-| InvWishart | $p(\mathbf{\Lambda}) = \mathcal{IW}(\mathbf{V},K)$      | $K = D$ <br />  $\mathbf{V} = \mathbf{I}_D$        | $\log C - (2K + 1)\sum_d{\log \|\mathbf{L}_{dd}\|} - \frac{1}{2}\text{Tr}[\mathbf{V}\mathbf{\Lambda}^-1]$ |
+| InvWishart | $p(\mathbf{\Lambda}) = \mathcal{IW}(\mathbf{V},K)$      | $K = D$ <br />  $\mathbf{V} = \mathbf{I}_D$        | $\log C - (2K + 1)\sum_d{\log \|\mathbf{L}_{dd}\|} - \frac{1}{2}\text{Tr}[\mathbf{V}\mathbf{\Lambda}^{-1}]$ |
 
 ### Reference
 Rossi, S., Heinonen, M., Bonilla, E., Shen, Z. &amp; Filippone, M.. (2021).  Sparse Gaussian Processes Revisited: Bayesian Approaches to Inducing-Variable Approximations. <i>Proceedings of The 24th International Conference on Artificial Intelligence and Statistics</i>, in <i>Proceedings of Machine Learning Research</i> 130:1837-1845 
