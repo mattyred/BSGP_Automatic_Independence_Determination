@@ -125,6 +125,7 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     results['prior_type'] = args.prior_type
     results['fold'] = args.fold
     results['dataset'] = args.dataset
+    results['pca'] = -1
     #results['test_mnll'] = np.mean(results['test_mnll'])
     results['precise_kernel'] = precise_kernel
 
