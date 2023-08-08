@@ -211,7 +211,7 @@ def main():
                 current_fold_data_ker1['trained_model'] = model
                 current_fold_data_ker1['X_train_indices'] = train_index
                 current_fold_data_ker1['X_test_indices'] = val_index
-                print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, args.precise_kernel, current_fold_data_ker1['test_mnll']))
+                print('Fold %d - precise kernel: %d - test accuracy: %.3f' % (n_fold, args.precise_kernel, current_fold_data_ker1['test_accuracy']))
             else: # ARD and AID
                 # ARD model
                 test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False) 
@@ -220,7 +220,7 @@ def main():
                 current_fold_data_ker1['trained_model'] = model
                 current_fold_data_ker1['X_train_indices'] = train_index
                 current_fold_data_ker1['X_test_indices'] = val_index
-                print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, 0, current_fold_data_ker1['test_mnll'])) 
+                print('Fold %d - precise kernel: %d - test_accuracy: %.3f' % (n_fold, 0, current_fold_data_ker1['test_accuracy'])) 
                 # AID model
                 test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=True) 
                 current_fold_data_ker2['test_mnll'] = test_mnll
@@ -228,7 +228,7 @@ def main():
                 current_fold_data_ker2['trained_model'] = model
                 current_fold_data_ker2['X_train_indices'] = train_index
                 current_fold_data_ker2['X_test_indices'] = val_index
-                print('Fold %d - precise kernel: %d - test MNLL: %.3f' % (n_fold, 1, current_fold_data_ker2['test_mnll']))
+                print('Fold %d - precise kernel: %d - test_accuracy: %.3f' % (n_fold, 1, current_fold_data_ker2['test_accuracy']))
             # Store results current fold in 'kfold_data'
             if args.precise_kernel == 0 or args.precise_kernel == 1: # AID or ARD
                 kfold_data_ker1.append({'test_mnll': current_fold_data_ker1['test_mnll'], 'test_accuracy': current_fold_data_ker1['test_accuracy'], 'trained_model': current_fold_data_ker1['trained_model'], 'X_train_indices': train_index, 'X_test_indices': val_index, 'precise_kernel': args.precise_kernel})
