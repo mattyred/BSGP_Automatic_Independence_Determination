@@ -260,7 +260,7 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     model.ARGS.prior_precision_parameters = {'prior_laplace_b':  args.prior_laplace_b, 'prior_normal_mean':  args.prior_normal_mean, 'prior_normal_variance': args.prior_normal_variance, 'prior_horseshoe_globshrink': args.prior_horseshoe_globshrink, 'parametrization': args.prior_precision_select_param}
     model.fit(X_train, Y_train, epsilon=args.step_size)
     test_mnll = -model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
-    test_accuracy = model.calculate_accuracy(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
+    test_accuracy = model.calculate_accuracy(X_test, Y_test, Y_train_mean, Y_train_std)
     return test_mnll, test_accuracy, model
 
 if __name__ == '__main__':

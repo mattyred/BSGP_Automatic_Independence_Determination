@@ -123,7 +123,7 @@ def process_results_kfold(filepath=None, invsquare=False):
           'prior_type': results_kfold['prior_type'],
           'fold': results_kfold['fold'],
           'dataset': results_kfold['dataset'],
-          'pca': results_kfold['pca'],
+          'pca': results_kfold['pca'] if 'pca' in results_kfold else -1, # to adapt to json files without 'pca' key
           'precise_kernel': results_kfold['precise_kernel'],
           #'prior_precision_type': results_kfold['prior_precision_type'],
            posterior_samples_kern_cov: results_kfold['posterior_samples_kern_L'][k] if precise_kernel else results_kfold['posterior_samples_loglengthscales'][k],
