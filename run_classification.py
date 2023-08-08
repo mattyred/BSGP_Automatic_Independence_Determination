@@ -201,8 +201,8 @@ def main():
             Y_train, Y_test = Y[train_index], Y[val_index]
             # Standardize data
             Y_train_mean, Y_train_std = Y_train.mean(0), Y_train.std(0) + 1e-9
-            Y_train = (Y_train - Y_train_mean) / Y_train_std
-            Y_test = (Y_test - Y_train_mean) / Y_train_std
+            #Y_train = (Y_train - Y_train_mean) / Y_train_std
+            #Y_test = (Y_test - Y_train_mean) / Y_train_std
             # Train model on X_train, Y_train
             if args.precise_kernel == 0 or args.precise_kernel == 1: # ARD or AID
                 test_mnll, test_accuracy, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel)
