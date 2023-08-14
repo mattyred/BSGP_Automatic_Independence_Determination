@@ -184,7 +184,7 @@ class DGP(BaseModel):
         for layer in self.layers:
             layer.Lm = None
 
-    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='normal', prior_precision_parameters=None, full_cov=False, epsilon=0.01, mdecay=0.05,):
+    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='normal', prior_precision_parameters=None, full_cov=False, epsilon=0.01, mdecay=0.05):
         self.n_inducing = n_inducing
         self.kernels = kernels
         self.likelihood = likelihood

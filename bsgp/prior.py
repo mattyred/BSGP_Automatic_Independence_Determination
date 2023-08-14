@@ -36,7 +36,7 @@ def matrix_invwishart_logprob(L, P):
     return -(2*n + 1) * tf.math.reduce_sum(tf.math.log(tf.linalg.tensor_diag_part(tf.math.maximum(tf.cast(1e-8, tf.float64),tf.math.abs(L))))) - tf.linalg.trace(tf.linalg.inv(P)) / 2.0
 
 def laplace_logprob(P, b=0.01):
-    return -tf.reduce_sum(tf.norm(P, ord=1) / b)
+    return -tf.reduce_sum(tf.norm(P, ord=1) / b) 
 
 def normal_logprob(X, m=0, v=1):
     return -tf.reduce_sum(tf.square((X-m)/v)) / 2.0

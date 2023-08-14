@@ -64,6 +64,7 @@ class Model(object):
                              **kwargs)
             print(self.model)
 
+
         self.model.reset(X, Y)
         # writer = SummaryWriter(self.ARGS.logdir, flush_secs=1)
         try:

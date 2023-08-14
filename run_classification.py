@@ -13,6 +13,8 @@ from bsgp.models import ClassificationModel
 import argparse
 import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
+#tf.debugging.enable_check_numerics() 
+tf.debugging.experimental.enable_dump_debug_info("/tmp/tfdbg2_logdir",tensor_debug_mode="FULL_HEALTH", circular_buffer_size=-1)
 import json
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
