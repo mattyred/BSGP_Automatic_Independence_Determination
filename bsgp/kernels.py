@@ -251,7 +251,7 @@ class SquaredExponential(Stationary):
         return self.variance * tf.exp(-r2 / 2.)
     
 
-class FullPrecisionRBF(gpflow.kernels.Kernel):  
+class FullPrecisionRBF(Kernel):  #gpflow.kernels.Kernel
 
     def __init__(self, **kwargs):
         randomized = kwargs["randomized"]
@@ -263,7 +263,7 @@ class FullPrecisionRBF(gpflow.kernels.Kernel):
             L = get_lower_triangular_from_diag(self.d)
         else:
             L = get_lower_triangular_uniform_random(self.d)
-        super().__init__()#super().__init__(input_dim=self.d)
+        super().__init__(input_dim=self.d) #super().__init__()
         self.L = tf.Variable(L, name='L', dtype=tf.float64)
         self.logvariance = tf.Variable(np.log(self._v), dtype=tf.float64, name='log_variance', trainable=False)
         self.variance = tf.exp(self.logvariance)

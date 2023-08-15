@@ -274,7 +274,7 @@ if __name__ == '__main__':
     parser.add_argument('--prior_type', choices=['determinantal', 'normal', 'strauss', 'uniform'], default='normal')
     parser.add_argument('--model', choices=['bsgp'], default='bsgp')
     parser.add_argument('--num_posterior_samples', type=int, default=512)
-    parser.add_argument('--step_size', type=float, default=0.01)
+    parser.add_argument('--step_size', type=float, default=0.01) #0.01
     parser.add_argument('--precise_kernel', type=int, default=0)
     parser.add_argument('--kfold', type=int, default=-1) 
     parser.add_argument('--prior_precision_type', choices=['normal', 'laplace+diagnormal', 'horseshoe+diagnormal', 'wishart', 'invwishart', 'laplace', 'horseshoe'], default='normal') # Prior on kernel precision matrix

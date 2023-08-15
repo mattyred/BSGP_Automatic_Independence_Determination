@@ -100,11 +100,11 @@ def conditional(Xnew, X, kern, f, *, full_cov=False, q_sqrt=None, white=False, r
     """
 
     num_data = tf.shape(X)[0]  # M
-    Kmm = kern.K(X) + tf.ones(num_data, dtype=tf.float64) * 1e-3
+    Kmm = kern.K(X) + tf.eye(num_data, dtype=tf.float64) * 1e-7
     Kmn = kern.K(X, Xnew)
     if full_cov:
         Knn = kern.K(Xnew)
     else:
         Knn = kern.Kdiag(Xnew)
-    #tf.print({'Kmm': Kmm, 'Lambda': kern.precision()}, output_stream=sys.stderr)
+    #tf.print({'Kmm': Kmm}, output_stream=sys.stderr)
     return base_conditional(Kmn, Kmm, Knn, f, full_cov=full_cov, q_sqrt=q_sqrt, white=white, return_Lm=return_Lm) # N x R, N x R or R x N x N
