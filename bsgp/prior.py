@@ -19,8 +19,12 @@ def logdet_jacobian(L, eps=1e-6):
     return tf.cast(n*tf.math.log(2.0), dtype=L.dtype) + tf.reduce_sum(tf.math.multiply(exps,tf.math.log(tf.math.abs(diag_L)))) #tf.math.log(tf.math.abs((2.0**n) * tf.reduce_prod(tf.pow(diag_L,exps))))
 
 def horseshoe_logprob(X, scale):
-    u = tf.square(X) / 2*scale**2
-    return tf.reduce_sum(u + tf.math.log(_integral_function_approx(u+1e-6)))
+    u = tf.square(X) / (2*scale**2)
+    return tf.reduce_sum(u + tf.math.log(_integral_function_approx(u)))
+
+def horseshoe_logprob_tf(X, scale):
+    X = tf.cast(X,  dtype=tf.float32)
+    return tf.reduce_sum(tf.cast(tfp.distributions.Horseshoe(scale=scale).log_prob(X), dtype=tf.float64))
 
 def matrix_normal_logprob(X):
     return -0.5 * tf.linalg.trace(tf.matmul(X, tf.transpose(X)))

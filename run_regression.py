@@ -16,7 +16,7 @@ tf.compat.v1.disable_eager_execution()
 import json
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
-
+#tf.debugging.enable_check_numerics() 
 from torch.utils.data import  TensorDataset
 
 import torch
@@ -255,9 +255,10 @@ def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_tra
     model.ARGS.full_cov = False
     model.ARGS.posterior_sample_spacing = 32
     logger.info('Number of inducing points: %d' % model.ARGS.num_inducing)
+    model.ARGS.clip_by_value = args.clip_by_value
     model.ARGS.precise_kernel = precise_kernel 
     model.ARGS.prior_precision_type = args.prior_precision_type
-    model.ARGS.prior_precision_parameters = {'prior_laplace_b':  args.prior_laplace_b, 'prior_normal_mean':  args.prior_normal_mean, 'prior_normal_variance': args.prior_normal_variance, 'prior_horseshoe_globshrink': args.prior_horseshoe_globshrink, 'parametrization': args.prior_precision_select_param}
+    model.ARGS.prior_precision_parameters = {'prior_laplace_b':  args.prior_laplace_b, 'prior_normal_mean':  args.prior_normal_mean, 'prior_normal_variance': args.prior_normal_variance, 'prior_horseshoe_globshrink': args.prior_horseshoe_globshrink, 'parametrization': args.prior_precision_select_param, 'init_random_L': args.init_random_L}
     model.fit(X_train, Y_train, epsilon=args.step_size)
     test_mnll = -model.calculate_density(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
     test_rmse = model.calculate_rmse(X_test, Y_test, Y_train_mean, Y_train_std).mean().tolist()
@@ -289,6 +290,10 @@ if __name__ == '__main__':
     parser.add_argument('--prior_precision_select_param', choices=['Lambda', 'L'], default='Lambda')
     # PCA
     parser.add_argument('--pca', type=int, default=-1)
+    # gradient clipping
+    parser.add_argument('--clip_by_value', type=int, default=-1)
+    # Random L initialization
+    parser.add_argument('--init_random_L', type=int, default=1)
 
     args = parser.parse_args()
 

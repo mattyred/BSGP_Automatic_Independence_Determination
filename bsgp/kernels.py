@@ -254,12 +254,12 @@ class SquaredExponential(Stationary):
 class FullPrecisionRBF(Kernel):  #gpflow.kernels.Kernel
 
     def __init__(self, **kwargs):
-        randomized = kwargs["randomized"]
+        self.randomized = kwargs["randomized"]
         self.d = kwargs["d"]
         self.input_dim = self.d
         self.prior_precision_info = kwargs["prior_precision_info"]
         self._v = kwargs["variance"]
-        if not randomized:
+        if not self.randomized:
             L = get_lower_triangular_from_diag(self.d)
         else:
             L = get_lower_triangular_uniform_random(self.d)
@@ -330,7 +330,7 @@ class FullPrecisionRBF(Kernel):  #gpflow.kernels.Kernel
             prior_precision_info_str = ' Prior precision type = %s'%(self.prior_precision_info['type'])
             if self.prior_precision_info['type'] == 'laplace' or self.prior_precision_info['type'] == 'laplace+diagnormal':
                 prior_precision_info_str +=  ' (b = %.2f)'%self.prior_precision_info['parameters']['prior_laplace_b']
-            elif self.prior_precision_info['type']  == 'horseshoe+diagnormal':
+            elif self.prior_precision_info['type'] == 'horseshoe' or self.prior_precision_info['type']  == 'horseshoe+diagnormal':
                 prior_precision_info_str +=  ' (glob_shrinkage = %.2f)'%self.prior_precision_info['parameters']['prior_horseshoe_globshrink']
         else:
             prior_precision_info_str = ' Prior precision type = normal ' + '(mean = %.2f, variance = %.2f)'%(self.prior_precision_info['parameters']['prior_normal_mean'], self.prior_precision_info['parameters']['prior_normal_variance'])
@@ -338,6 +338,7 @@ class FullPrecisionRBF(Kernel):  #gpflow.kernels.Kernel
         str = [
             '======= Kernel: FullPrecisionRBF (param: LLᵀ)',
             # ' Input dim = %d' % self.input_dim,
+            ' Random L init = %r' % self.randomized,
             ' Variance = %.3f' % self._v,
             prior_precision_info_str
         ]

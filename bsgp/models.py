@@ -28,6 +28,7 @@ class Model(object):
             precise_kernel = False # LRBF-MOD
             prior_precision_type = None # LRBF-MOD
             prior_precision_parameters = None
+            clip_by_value = None
 
         self.ARGS = ARGS
         self.model = None
@@ -48,7 +49,7 @@ class Model(object):
                 output_dim = 196 if i >= 1 and X.shape[1] > 700 else X.shape[1]
                 # kerns.append(BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)) # LRBF-MOD
                 prior_precision_info = {'type': self.ARGS.prior_precision_type, 'parameters': self.ARGS.prior_precision_parameters, 'parametrization': self.ARGS.prior_precision_parameters['parametrization']}
-                kernel = BgpFullRBF(variance=0.1, randomized=False, d=output_dim, prior_precision_info=prior_precision_info) if self.ARGS.precise_kernel else BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)
+                kernel = BgpFullRBF(variance=0.1, randomized=bool(self.ARGS.prior_precision_parameters['init_random_L']), d=output_dim, prior_precision_info=prior_precision_info) if self.ARGS.precise_kernel else BgpSE(output_dim, ARD=True, lengthscales=float(min(X.shape[1], output_dim))**0.5)
                 kerns.append(kernel)
 
             mb_size = self.ARGS.minibatch_size if X.shape[0] > self.ARGS.minibatch_size else X.shape[0]
@@ -61,6 +62,7 @@ class Model(object):
                              prior_precision_type=self.ARGS.prior_precision_type,
                              prior_precision_parameters = self.ARGS.prior_precision_parameters,
                              output_dim=self.output_dim,
+                             clip_by_value=self.ARGS.clip_by_value,
                              **kwargs)
             print(self.model)
 
@@ -70,6 +72,8 @@ class Model(object):
         try:
             for _ in range(self.ARGS.iterations):
                 self.global_step += 1
+                #if self.global_step == 2000:
+                #   self.model.session.run(tf.compat.v1.assign(self.model.layers[0].beta, 1.0)) # beta-activation
                 # self.model.rewhiten()
                 self.model.sghmc_step()
                 if self.ARGS.prior_type == "determinantal":

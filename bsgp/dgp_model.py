@@ -6,7 +6,7 @@ import tensorflow_probability as tfp
 from .base_model import BaseModel
 from . import conditionals
 from .utils import get_rand
-from .prior import logdet_jacobian, laplace_logprob, normal_logprob, horseshoe_logprob, matrix_wishart_logprob, matrix_invwishart_logprob
+from .prior import logdet_jacobian, laplace_logprob, normal_logprob, horseshoe_logprob, matrix_wishart_logprob, matrix_invwishart_logprob, horseshoe_logprob_tf
 import sys
 
 def set_seed(seed=0):
@@ -53,6 +53,8 @@ class Layer(object):
         self.precise_kernel = precise_kernel # LRBF-MOD
         self.prior_precision_type = prior_precision_type # LRBF-MOD
         self.prior_precision_parameters = prior_precision_parameters
+        beta = 0 # beta-prior selector
+        self.beta = tf.Variable(beta, name='beta', dtype=tf.float64, trainable=False) # beta-prior selector
         #self.Kc = commutation_matrix(self.X.shape[1], self.X.shape[1])
         if prior_type == "strauss":
             self.pZ = Strauss(R=0.5)
@@ -100,6 +102,7 @@ class Layer(object):
             raise Exception("Invalid prior type")
     @tf.function
     def prior_hyper(self):
+        #tf.print({'beta': self.beta}, output_stream=sys.stderr) 
         # Lognormal(0,0.05) prior on kernel logvariance
         prior_kernel_logvariance =  -tf.reduce_sum(tf.square(self.kernel.logvariance - np.log(0.05))) / 2.0
         if self.precise_kernel:
@@ -127,7 +130,8 @@ class Layer(object):
             elif self.prior_precision_type == 'horseshoe+diagnormal':
                 # HS(Λ_|λ) + Normal(diagonal(Λ)|0,1)
                 # X ~ HS(λ) -> X ~ N(0,λσ), σ ~ C+(0,1)
-                prior_precision = horseshoe_logprob(self.kernel.precision_off_diagonals(), self.prior_precision_parameters['prior_horseshoe_globshrink']) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
+                #tf.print({'off': self.kernel.precision_off_diagonals()}, summarize=-1, output_stream=sys.stderr) 
+                prior_precision = horseshoe_logprob_tf(self.kernel.precision_off_diagonals_prot(), self.prior_precision_parameters['prior_horseshoe_globshrink']) + normal_logprob(tf.linalg.tensor_diag_part(self.kernel.precision())) + logdet
 
             #[2] Matrix-variate priors (only on Λ)
             elif self.prior_precision_type == 'wishart':
@@ -144,7 +148,7 @@ class Layer(object):
         return prior_hyper
     @tf.function
     def prior(self):
-        #tf.print({'kern.P': self.kernel.precision()}, output_stream=sys.stderr) 
+        #tf.print({'beta': self.beta}, output_stream=sys.stderr) 
         return -tf.reduce_sum(tf.square(self.U)) / 2.0 + self.prior_hyper()  + self.prior_Z()
 
     def __str__(self):
@@ -184,12 +188,13 @@ class DGP(BaseModel):
         for layer in self.layers:
             layer.Lm = None
 
-    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='normal', prior_precision_parameters=None, full_cov=False, epsilon=0.01, mdecay=0.05):
+    def __init__(self, X, Y, n_inducing, kernels, precise_kernel, likelihood, minibatch_size, window_size, output_dim=None, adam_lr=0.01, prior_type="uniform", prior_precision_type='normal', prior_precision_parameters=None, full_cov=False, epsilon=0.01, mdecay=0.05, clip_by_value=-1):
         self.n_inducing = n_inducing
         self.kernels = kernels
         self.likelihood = likelihood
         self.minibatch_size = minibatch_size
         self.window_size = window_size
+        self.clip_by_value = clip_by_value
 
         self.rand = lambda x: get_rand(x, full_cov)
         self.output_dim = output_dim or Y.shape[1]
@@ -223,7 +228,7 @@ class DGP(BaseModel):
         self.nll = - tf.reduce_sum(self.log_likelihood) / tf.cast(tf.shape(self.X_placeholder)[0], tf.float64) \
                        - (self.prior / N)
 
-        self.generate_update_step(self.nll, epsilon, mdecay)
+        self.generate_update_step(self.nll, epsilon, mdecay, self.clip_by_value)
         self.adam = tf.compat.v1.train.AdamOptimizer(adam_lr)
         try:
             self.hyper_train_op = self.adam.minimize(self.nll)
@@ -267,6 +272,7 @@ class DGP(BaseModel):
             '================= DGP',
             ' Input dim = %d' % self.layers[0].inputs,
             ' Output dim = %d' % self.layers[-1].outputs,
-            ' Depth = %d' % len(self.layers)
+            ' Depth = %d' % len(self.layers),
+            ' Gradient clipping = %d' % self.clip_by_value
         ]
         return '\n'.join(str + ['\n'.join(map(lambda s: ' |' + s, l.__str__().split('\n'))) for l in self.layers])

@@ -30,9 +30,9 @@ def get_lower_triangular_from_diag(d):
 
 def get_lower_triangular_uniform_random(d):
     L = np.random.uniform(-1,1,(d*(d+1)//2,))
-    #Lambda = full_L @ np.transpose(full_L) # Λ=LLᵀ
-    #L = scipy.linalg.cholesky(Lambda + 1e-6 , lower=True)
-    return tf.convert_to_tensor(L, dtype=tf.float64) #tfp.math.fill_triangular_inverse(L, upper=False)
+    Lambda = L @ np.transpose(L) # Λ=LLᵀ
+    L = scipy.linalg.cholesky(Lambda + np.eye(d) * 1e-7 , lower=True)
+    return tfp.math.fill_triangular_inverse(L, upper=False)
 
 def commutation_matrix(m, n):
     w = np.arange(m * n).reshape((m, n), order="F").T.ravel(order="F")

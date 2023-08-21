@@ -19,14 +19,14 @@ class BaseModel(object):
         self.sample_op = None
         self.burn_in_op = None
 
-    def generate_update_step(self, nll, epsilon, mdecay):
+    def generate_update_step(self, nll, epsilon, mdecay, clip_by_value):
         self.epsilon = epsilon
         burn_in_updates = []
         sample_updates = []
 
         grads = tf.gradients(nll, self.vars)
-        #value = 10
-        #grads = [tf.clip_by_value(g, clip_value_min=-value, clip_value_max=value) for g in grads]
+        if clip_by_value != -1:
+            grads = [tf.clip_by_value(g, clip_value_min=-clip_by_value, clip_value_max=clip_by_value) for g in grads]
 
         for theta, grad in zip(self.vars, grads):
             xi = tf.Variable(tf.ones_like(theta), dtype=tf.float64, trainable=False)
