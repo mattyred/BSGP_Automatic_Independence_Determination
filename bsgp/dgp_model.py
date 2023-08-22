@@ -120,7 +120,7 @@ class Layer(object):
                 prior_precision = laplace_logprob(matrix_prior, self.prior_precision_parameters['prior_laplace_b']) + logdet
             elif self.prior_precision_type == 'horseshoe':
                 # HS(L|λ) or HS(Λ|λ)
-                prior_precision = horseshoe_logprob(matrix_prior, self.prior_precision_parameters['prior_horseshoe_globshrink']) + logdet
+                prior_precision = horseshoe_logprob_tf(matrix_prior, self.prior_precision_parameters['prior_horseshoe_globshrink']) + logdet
             elif self.prior_precision_type == 'normal':
                 # N(L|0,0.1) or N(Λ|0,0.1)
                 prior_precision = normal_logprob(matrix_prior, m=self.prior_precision_parameters['prior_normal_mean'],v=self.prior_precision_parameters['prior_normal_variance']) + logdet

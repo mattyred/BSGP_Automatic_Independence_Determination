@@ -24,7 +24,7 @@ def horseshoe_logprob(X, scale):
 
 def horseshoe_logprob_tf(X, scale):
     X = tf.cast(X,  dtype=tf.float32)
-    return tf.reduce_sum(tf.cast(tfp.distributions.Horseshoe(scale=scale).log_prob(X), dtype=tf.float64))
+    return tf.reduce_sum(tf.cast(tfp.distributions.Horseshoe(scale=scale).log_prob(X+1e-19), dtype=tf.float64))
 
 def matrix_normal_logprob(X):
     return -0.5 * tf.linalg.trace(tf.matmul(X, tf.transpose(X)))

@@ -16,7 +16,7 @@ tf.compat.v1.disable_eager_execution()
 import json
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
-#tf.debugging.enable_check_numerics() 
+tf.debugging.enable_check_numerics() 
 from torch.utils.data import  TensorDataset
 
 import torch
