@@ -32,9 +32,11 @@ usage: [same arguments as for regression, choose a proper dataset]
 |     BOSTON |     regression |   506 |   13 | https://archive.ics.uci.edu/ml/datasets/Housing                     |
 |     KIN8NM |     regression |  8192 |    8 |                                                                     |
 | POWERPLANT |     regression |  9568 |    4 | https://archive.ics.uci.edu/dataset/294/combined+cycle+power+plant  |
+|   CONCRETE |     regression |  1030 |    8 | https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength |
 |        EEG | classification | 14980 |   14 | https://archive.ics.uci.edu/dataset/264/eeg+eye+state               |
 |       WILT | classification |  4839 |    5 | https://archive.ics.uci.edu/dataset/285/wilt                        |
 |     BREAST | classification |   683 |   10 | https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary.html |                                                                |
+| DIABETES   | classification |   783 |    8 | 
 
 ### Precise Kernel
 
