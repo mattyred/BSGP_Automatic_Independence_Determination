@@ -47,7 +47,7 @@ def process_results_onefold(filepath=None, dict=None, invsquare=False):
                 precisions_merged[i, j] = [mat[i, j] for mat in precisions_list]
                 precisions_merged_mean[i, j] = np.mean(precisions_merged[i, j])
                 precisions_merged_var[i, j] = np.var(precisions_merged[i, j])
-        processed_results = {'precisions_merged': precisions_merged, 'precisions_merged_mean': precisions_merged_mean, 'precisions_merged_var': precisions_merged_var, 'posterior_samples_kerlogvar': posterior_samples_kerlogvar, 'test_mnll': results['test_mnll'], 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices}
+        processed_results = {'precisions_merged': precisions_merged, 'precisions_merged_mean': precisions_merged_mean, 'precisions_merged_var': precisions_merged_var, 'posterior_samples_kerlogvar': posterior_samples_kerlogvar, 'posterior_samples_kern_L': posterior_samples_L, 'test_mnll': results['test_mnll'], 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices}
 
         if pca != -1:
             D = Pd.shape[0] # Original number of features
@@ -103,6 +103,7 @@ def process_results_kfold(filepath=None, invsquare=False):
     mean_kfold = []
     var_kfold = []
     kerlogvar_kfold = []
+    posterior_samples_kern_L_kfold = []
     test_mnll_kfold = []
     test_rmse_kfold = []
     test_accuracy_kfold = []
@@ -143,6 +144,7 @@ def process_results_kfold(filepath=None, invsquare=False):
       mean_kfold.append(processed_results['precisions_merged_mean']) if precise_kernel else mean_kfold.append(processed_results['lengthscales_merged_mean'])
       var_kfold.append(processed_results['precisions_merged_var']) if precise_kernel else var_kfold.append(processed_results['lengthscales_merged_var'])
       kerlogvar_kfold.append(processed_results['posterior_samples_kerlogvar'])
+      posterior_samples_kern_L_kfold.append(processed_results['posterior_samples_kern_L'])
       test_mnll_kfold.append(processed_results['test_mnll'])
       if regression:
           test_rmse_kfold.append(processed_results['test_rmse'])
@@ -158,7 +160,7 @@ def process_results_kfold(filepath=None, invsquare=False):
         processed_results_kfold['precisions_merged_mean_kfold'] = mean_kfold
         processed_results_kfold['precisions_mean_over_kfold'] = mean_over_kfold
         processed_results_kfold['precisions_merged_var_kfold'] = var_kfold 
-        processed_results_kfold['precisions_var_over_kfold'] = var_over_kfold
+        processed_results_kfold['posterior_samples_kern_L_kfold'] = posterior_samples_kern_L_kfold
     else:
         processed_results_kfold['lengthscales_merged_kfold'] = merged_kfold
         processed_results_kfold['lengthscales_merged_mean_kfold'] = mean_kfold
