@@ -29,6 +29,7 @@ class Model(object):
             prior_precision_type = None # LRBF-MOD
             prior_precision_parameters = None
             clip_by_value = None
+            mcmc_measures = False
 
         self.ARGS = ARGS
         self.model = None
@@ -79,6 +80,9 @@ class Model(object):
                 if self.ARGS.prior_type == "determinantal":
                     self.model.reset_Lm()
                 self.model.train_hypers() if hasattr(self.model, 'hyper_train_op') else None
+
+                # MCMC measurement
+                
                 if _ % 250 == 1:
                     marginal_ll = self.model.print_sample_performance()
                     # writer.add_scalar('optimisation/marginal_likelihood', marginal_ll*len(X), self.global_step)

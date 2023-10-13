@@ -7,8 +7,8 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import argparse
 
-DATASETS_FEATURES = {'boston': 13, 'powerplant': 4, 'kin8nm': 8, 'eeg': 14, 'wilt': 5, 'breast': 10}
-DATASETS_REGRESSION = {'boston': True, 'powerplant': True, 'kin8nm': True, 'eeg': False, 'wilt': False, 'breast': False}
+DATASETS_FEATURES = {'boston': 13, 'powerplant': 4, 'kin8nm': 8, 'concrete': 8, 'eeg': 14, 'wilt': 5, 'breast': 10, 'diabetes': 8}
+DATASETS_REGRESSION = {'boston': True, 'powerplant': True, 'kin8nm': True, 'concrete': True, 'eeg': False, 'wilt': False, 'breast': False, 'diabetes': False}
 
 def process_results_onefold(filepath=None, dict=None, invsquare=False):
     if dict is None: 
@@ -26,7 +26,7 @@ def process_results_onefold(filepath=None, dict=None, invsquare=False):
     X_train_indices = np.array(results['X_train_indices'])
     X_test_indices = np.array(results['X_test_indices'])
 
-    # AID kernel
+    # AID kernel
     if precise_kernel:
         posterior_samples_L = [np.array(results['posterior_samples_kern_L'][i]) for i in range(n_samples)]
         Pd = np.array(results['Pd']) if pca != -1 else None
@@ -144,7 +144,7 @@ def process_results_kfold(filepath=None, invsquare=False):
       mean_kfold.append(processed_results['precisions_merged_mean']) if precise_kernel else mean_kfold.append(processed_results['lengthscales_merged_mean'])
       var_kfold.append(processed_results['precisions_merged_var']) if precise_kernel else var_kfold.append(processed_results['lengthscales_merged_var'])
       kerlogvar_kfold.append(processed_results['posterior_samples_kerlogvar'])
-      posterior_samples_kern_L_kfold.append(processed_results['posterior_samples_kern_L'])
+      posterior_samples_kern_L_kfold.append(processed_results['posterior_samples_kern_L']) if precise_kernel else None
       test_mnll_kfold.append(processed_results['test_mnll'])
       if regression:
           test_rmse_kfold.append(processed_results['test_rmse'])
