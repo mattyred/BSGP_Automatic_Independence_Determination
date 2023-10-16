@@ -70,8 +70,13 @@ class Model(object):
 
         self.model.reset(X, Y)
         # writer = SummaryWriter(self.ARGS.logdir, flush_secs=1)
+        # MCMC measurement
+        if self.ARGS.mcmc_measures:
+            self.samples_ms_iter = np.empty((Xtest.shape[0],self.ARGS.iterations))
+            self.samples_vs_iter = np.empty((Xtest.shape[0],self.ARGS.iterations))
+            self.samples_logps_iter = np.empty((Xtest.shape[0],self.ARGS.iterations))
         try:
-            for _ in range(self.ARGS.iterations):
+            for it in range(self.ARGS.iterations):
                 self.global_step += 1
                 #if self.global_step == 2000:
                 #   self.model.session.run(tf.compat.v1.assign(self.model.layers[0].beta, 1.0)) # beta-activation
@@ -82,18 +87,24 @@ class Model(object):
                 self.model.train_hypers() if hasattr(self.model, 'hyper_train_op') else None
 
                 # MCMC measurement
-                
-                if _ % 250 == 1:
+                if self.ARGS.mcmc_measures:
+                    ms, vs = self.model.predict_y(Xtest, len(self.model.window), posterior=False)
+                    self.samples_ms_iter[:,it:it+1] = ms[0]
+                    self.samples_vs_iter[:,it:it+1] = vs[0]
+                    logps = norm.logpdf(np.repeat(Ytest[None, :, :]*Ystd, len(self.model.window), axis=0), ms*Ystd, np.sqrt(vs)*Ystd)
+                    self.samples_logps_iter[:,it:it+1] = logps[0]
+
+                if it % 250 == 1:
                     marginal_ll = self.model.print_sample_performance()
                     # writer.add_scalar('optimisation/marginal_likelihood', marginal_ll*len(X), self.global_step)
-                    print('TRAIN | iter = %6d      sample marginal LL = %5.2f' % (_, marginal_ll))
+                    print('TRAIN | iter = %6d      sample marginal LL = %5.2f' % (it, marginal_ll))
                     # Test with previous samples with Xtest and Ytest are both not None
                     if not (Xtest is None or Ytest is None or Ystd is None):
                         ms, vs = self.model.predict_y(Xtest, len(self.model.window), posterior=False)
                         logps = norm.logpdf(np.repeat(Ytest[None, :, :]*Ystd, len(self.model.window), axis=0), ms*Ystd, np.sqrt(vs)*Ystd)
                         mnll = -np.mean(logsumexp(logps, axis=0) - np.log(len(self.model.window)))
                         # writer.add_scalar('test/predictive_nloglikelihood', mnll, self.global_step)
-                        print('TEST  | iter = %6d       MNLL = %5.2f' % (_, mnll))
+                        print('TEST  | iter = %6d       MNLL = %5.2f' % (it, mnll))
 
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)
             self.posterior_samples_kern_L = [list(self.model.posterior_samples[i].values())[-2].tolist() for i in range(self.ARGS.num_posterior_samples)] # LRBF-MOD

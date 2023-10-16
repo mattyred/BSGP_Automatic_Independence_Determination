@@ -63,6 +63,7 @@ def create_dataset(dataset, static, pca, fold):
     Y_train = Y[X_train_indices]
     X_test = X[X_test_indices]
     Y_test = Y[X_test_indices]
+    #print('FOLD TEST ', X_train[10:12,:]) # check random seed
     Pd = None
     if pca != -1:
         X_train, Pd = apply_pca(X_train, pca) # fit_transform X_train
@@ -88,30 +89,23 @@ def save_results_onefold(filepath, onefold_data, precise_kernel):
 
     #filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     pprint(results)
-    jsonfilepath = filepath + args.dataset + '_' + 'mcmc_results_.json'
-
-    # TODO: save mcmc chains
-    
-    with open(jsonfilepath, 'w', encoding='utf-8') as f:
-        json.dump(results, f, ensure_ascii=False, indent=4)
+    npzfilepath = filepath + args.dataset + '_' + 'mcmc_results.npz'
+    np.savez(npzfilepath, mcmc_samples_mean=onefold_data['trained_model'].samples_ms_iter, 
+                          mcmc_samples_var=onefold_data['trained_model'].samples_vs_iter,
+                          mcmc_samples_logps=onefold_data['trained_model'].samples_logps_iter)
+    #with open(npzfilepath, 'w', encoding='utf-8') as f:
+    #   json.dump(results, f, ensure_ascii=False, indent=4)
 
 def main():
-    set_seed(0)
+    set_seed(args.fold)
     filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     print('\n### Static Train/Test split ###')
     X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices, Pd = create_dataset(args.dataset, True, args.pca, args.fold)
     if args.minibatch_size > len(X_train): args.minibatch_size = len(X_train)
-    if args.precise_kernel == 0 or args.precise_kernel == 1:
-        test_mnll, test_rmse, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel) 
-        onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices, 'Pd': Pd} 
-        save_results_onefold(filepath, onefold_data, args.precise_kernel)
-    else:
-        test_mnll, test_rmse, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=0)
-        onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices, 'Pd': Pd} 
-        save_results_onefold(filepath, onefold_data, False)
-        test_mnll, test_rmse, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=1)
-        onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices, 'Pd': Pd} 
-        save_results_onefold(filepath, onefold_data, True)
+
+    test_mnll, test_rmse, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel) 
+    onefold_data = {'test_mnll': test_mnll, 'test_rmse': test_rmse, 'trained_model': model, 'X_train_indices': X_train_indices, 'X_test_indices': X_test_indices, 'Pd': Pd} 
+    save_results_onefold(filepath, onefold_data, args.precise_kernel)
 
 def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False):
     model = RegressionModel(args.prior_type)
