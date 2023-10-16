@@ -49,21 +49,30 @@ def set_seed(seed):
     np.random.seed(seed)
     tf.compat.v1.set_random_seed(seed)
 
-def create_dataset(dataset, static, pca, fold):
+def create_dataset(dataset, load_static_split, pca, fold):
     dataset_path = ('./data/' + dataset + '.pth')
-    logger.info('Loading dataset from %s' % dataset_path)
+    dataset_static_split_path = f'./data/{dataset}_static_split.npz'
     dataset = TensorDataset(*torch.load(dataset_path))
+    logger.info('Loading dataset from %s' % dataset_path)
     X, Y = dataset.tensors
     X, Y = X.numpy(), Y.numpy()
 
-    X_train_indices_boolean = np.random.choice([1, 0], size=X.shape[0], p=[0.8, 0.2])
-    X_train_indices = np.where(X_train_indices_boolean == 1)[0]
-    X_test_indices = np.where(X_train_indices_boolean == 0)[0]
+    if not load_static_split:
+        X_train_indices_boolean = np.random.choice([1, 0], size=X.shape[0], p=[0.8, 0.2])
+        X_train_indices = np.where(X_train_indices_boolean == 1)[0]
+        X_test_indices = np.where(X_train_indices_boolean == 0)[0]
+        np.savez(dataset_static_split_path, X_train_indices=X_train_indices, X_test_indices=X_test_indices)
+    else:
+        logger.info('Loading static split')
+        static_split_data = np.load(dataset_static_split_path)
+        X_train_indices = static_split_data['X_train_indices']
+        X_test_indices = static_split_data['X_test_indices']
+
     X_train = X[X_train_indices]
     Y_train = Y[X_train_indices]
     X_test = X[X_test_indices]
     Y_test = Y[X_test_indices]
-    #print('FOLD TEST ', X_train[10:12,:]) # check random seed
+    print('FOLD TEST ', X_train[10:12,:]) # check random seed
     Pd = None
     if pca != -1:
         X_train, Pd = apply_pca(X_train, pca) # fit_transform X_train
@@ -100,7 +109,7 @@ def main():
     set_seed(args.fold)
     filepath = next_path(os.path.dirname(os.path.realpath(__file__)) + '/results/' + '/run-%04d/')
     print('\n### Static Train/Test split ###')
-    X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices, Pd = create_dataset(args.dataset, True, args.pca, args.fold)
+    X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices, Pd = create_dataset(args.dataset, bool(args.load_static_split), args.pca, args.fold)
     if args.minibatch_size > len(X_train): args.minibatch_size = len(X_train)
 
     test_mnll, test_rmse, model = train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=args.precise_kernel) 
@@ -140,6 +149,8 @@ if __name__ == '__main__':
     parser.add_argument('--iterations', type=int, default=10000)
     parser.add_argument('--n_layers', type=int, default=1)
     parser.add_argument('--dataset', type=str, required=True)
+    # Read static split from file
+    parser.add_argument('--load_static_split', type=int, default=0) #0: use '--dataset' and save .npz, 1: read static split from .npz file
     parser.add_argument('--fold', type=int, default=0)
     parser.add_argument('--prior_type', choices=['determinantal', 'normal', 'strauss', 'uniform'], default='normal')
     parser.add_argument('--model', choices=['bsgp'], default='bsgp')
@@ -162,7 +173,7 @@ if __name__ == '__main__':
     parser.add_argument('--clip_by_value', type=int, default=-1)
     # Random L initialization
     parser.add_argument('--init_random_L', type=int, default=1)
-
+    
     args = parser.parse_args()
 
     if args.model == 'bsgp':
