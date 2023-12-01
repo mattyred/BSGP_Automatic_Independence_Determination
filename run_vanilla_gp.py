@@ -60,8 +60,15 @@ def create_dataset(dataset, static, pca, fold):
         return X_train, Y_train, X_test, Y_test, Y_train_mean, Y_train_std, X_train_indices, X_test_indices, Pd
 
 def assign_pathname(filepath, dataset, kernel_type):
-    p = filepath + dataset + '_'
-    return p + 'results'
+    if kernel_type == 0:
+        kernel_name = 'rbf' 
+    elif kernel_type == 1:
+        kernel_name = 'rbfard'
+    elif kernel_type == 2:
+        kernel_name = 'rbfacd'
+
+    pathname = filepath + dataset + '_' + kernel_name + '_' + 'results'
+    return pathname
 
 def save_results_onefold(filepath, onefold_data, kernel_type):
     results = dict()
@@ -80,7 +87,7 @@ def save_results_onefold(filepath, onefold_data, kernel_type):
     npzfilepath = assign_pathname(filepath, args.dataset, kernel_type)
     np.savez(npzfilepath, test_mnll=np.array(results['test_mnll']), test_rmse=results['test_mnll'], kern_cov=onefold_data['kern_cov'])
 
-def save_results_kfold(filepath, kfold_data, precise_kernel):
+def save_results_kfold(filepath, kfold_data, kernel_type):
     results = dict()
     results['model'] = args.model
     results['kfold'] = args.kfold
@@ -94,7 +101,7 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     pprint(results)
 
     # Save kernel precision matrices
-    npzfilepath = assign_pathname(filepath, args.dataset, precise_kernel)
+    npzfilepath = assign_pathname(filepath, args.dataset, kernel_type)
     kern_cov_list = [kfold_data[i]['kern_cov'] for i in range(args.kfold)]
     test_mnll_list = [kfold_data[i]['test_mnll'] for i in range(args.kfold)]
     test_rmse_list = [kfold_data[i]['test_rmse'] for i in range(args.kfold)]
