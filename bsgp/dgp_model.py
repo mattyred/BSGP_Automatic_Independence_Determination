@@ -62,7 +62,7 @@ class Layer(object):
         if len(X) > 1000000:
             perm = np.random.permutation(100000)
             X = X[perm]
-        self.Z = tf.Variable(kmeans2(X, self.M, minit='points')[0], dtype=tf.float64, trainable=False, name='Z')
+        #self.Z =  tf.Variable(self.X, dtype=tf.float64, trainable=False, name='Z')
         if self.inputs == outputs:
             self.mean = np.eye(self.inputs)
         elif self.inputs < self.outputs:
@@ -71,35 +71,31 @@ class Layer(object):
             _, _, V = np.linalg.svd(X, full_matrices=False)
             self.mean = V[:self.outputs, :].T
 
-        self.U = tf.Variable(np.zeros((self.M, self.outputs)), dtype=tf.float64, trainable=False, name='U')
+        #self.U = tf.Variable(np.zeros((self.M, self.outputs)), dtype=tf.float64, trainable=False, name='U')
         # self.U = tf.Variable(np.random.randn(self.M, self.outputs), dtype=tf.float64, trainable=False, name='U')
         self.Lm = None
-    @tf.function
-    def conditional(self, X):
-        mean, var, self.Lm = conditionals.conditional(X, self.Z, self.kernel, self.U, white=True, full_cov=self.full_cov, return_Lm=True)
+    
+    def full_gp_predict_f(self, X, Xnew, Y, full_cov, kernel, white=False):
+
+        kmm = kernel(X)
+        knn = kernel(Xnew, full_cov=full_cov)
+        kmn = kernel(X, Xnew)
+        f = Y
+        #kmm_plus_s = add_likelihood_noise_cov(kmm, self.likelihood, X)
+
+        f_mean, f_var = conditionals.base_conditional(
+            kmn, kmm, knn, f, full_cov=full_cov, white=white
+        ) 
+        return f_mean, f_var
+    
+    def conditional(self, X, Y):
+        #mean, var, self.Lm = conditionals.conditional(X, self.Z, self.kernel, self.U, white=True, full_cov=self.full_cov, return_Lm=True)
+        mean, var =  self.full_gp_predict_f(X, X, Y, self.full_cov, self.kernel, white=True)
         #tf.print({'Lm': self.Lm}, output_stream=sys.stderr)
         if self.fixed_mean:
             mean += tf.matmul(X, tf.cast(self.mean, tf.float64))    
         return mean, var
-    
-    def prior_Z(self):
-        if self.prior_type == "uniform":
-            return 0.
-        if self.prior_type == "normal":
-            return -tf.reduce_sum(tf.square(self.Z)) / 2.0
-            
 
-        if self.prior_type == "strauss":
-            return self.pZ.logp(self.Z)
-
-        #if self.Lm is not None: # determinantal;
-        if self.prior_type == "determinantal":
-            self.Lm = tf.linalg.cholesky(self.kernel.K(self.Z) + tf.eye(self.M, dtype=tf.float64) * 1e-7)
-            pZ = tf.reduce_sum(tf.math.log(tf.square(tf.linalg.diag_part(self.Lm))))
-            return pZ
-
-        else: #
-            raise Exception("Invalid prior type")
     @tf.function
     def prior_hyper(self):
         #tf.print({'beta': self.beta}, output_stream=sys.stderr) 
@@ -149,7 +145,7 @@ class Layer(object):
     @tf.function
     def prior(self):
         #tf.print({'beta': self.beta}, output_stream=sys.stderr) 
-        return -tf.reduce_sum(tf.square(self.U)) / 2.0 + self.prior_hyper()  + self.prior_Z()
+        return self.prior_hyper() 
 
     def __str__(self):
         str = [
@@ -165,12 +161,12 @@ class Layer(object):
 
 
 class DGP(BaseModel):
-    def propagate(self, X):
+    def propagate(self, X, Y):
         Fs = [X, ]
         Fmeans, Fvars = [], []
 
         for l, layer in enumerate(self.layers):
-            mean, var = layer.conditional(Fs[-1])
+            mean, var = layer.conditional(Fs[-1], Y)
             # eps = tf.random_normal(tf.shape(mean), dtype=tf.float64)
             # F = mean + eps * tf.sqrt(var)
             if l+1 < len(self.layers):
@@ -212,18 +208,14 @@ class DGP(BaseModel):
         variables = []
         for l in self.layers:
             # variables += [l.U, l.Z, l.kernel.loglengthscales, l.kernel.logvariance] LRBF-MOD
-            variables += [l.U, l.Z, l.kernel.L if precise_kernel else l.kernel.loglengthscales, l.kernel.logvariance]
+            variables += [l.kernel.L if precise_kernel else l.kernel.loglengthscales, l.kernel.logvariance]
 
         super().__init__(X, Y, variables, minibatch_size, window_size)
-        self.f, self.fmeans, self.fvars = self.propagate(self.X_placeholder)
+        self.f, self.fmeans, self.fvars = self.propagate(self.X_placeholder, self.Y_placeholder)
         self.y_mean, self.y_var = self.likelihood.predict_mean_and_var(self.fmeans[-1], self.fvars[-1])
     
         self.prior = tf.add_n([l.prior() for l in self.layers])
         self.log_likelihood = self.likelihood.predict_density(self.fmeans[-1], self.fvars[-1], self.Y_placeholder)
-
-        # self.varexps = self.likelihood.variational_expectations(self.fmeans[-1], self.fvars[-1], self.Y_placeholder)
-        # self.nll = - tf.reduce_sum(self.varexps) / tf.cast(tf.shape(self.X_placeholder)[0], tf.float64) \
-        #            - (self.prior / N)
 
         self.nll = - tf.reduce_sum(self.log_likelihood) / tf.cast(tf.shape(self.X_placeholder)[0], tf.float64) \
                        - (self.prior / N)

@@ -246,7 +246,7 @@ def main():
 
 def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False):
     model = RegressionModel(args.prior_type)
-    model.ARGS.num_inducing = args.num_inducing
+    model.ARGS.num_inducing = X_train.shape[0]
     model.ARGS.minibatch_size = args.minibatch_size
     model.ARGS.iterations = args.iterations
     model.ARGS.n_layers = args.n_layers
