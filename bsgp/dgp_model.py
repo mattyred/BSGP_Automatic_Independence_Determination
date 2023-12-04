@@ -77,9 +77,12 @@ class Layer(object):
     
     def full_gp_predict_f(self, X, Xnew, Y, full_cov, kernel, white=False):
 
-        kmm = kernel(X)
-        knn = kernel(Xnew, full_cov=full_cov)
-        kmn = kernel(X, Xnew)
+        kmm = kernel.K(X) + tf.eye(tf.shape(X)[0], dtype=tf.float64) * 1e-7
+        if full_cov:
+            knn = kernel.K(Xnew)
+        else:
+            knn = kernel.Kdiag(Xnew)
+        kmn = kernel.K(X, Xnew)
         f = Y
         #kmm_plus_s = add_likelihood_noise_cov(kmm, self.likelihood, X)
 
