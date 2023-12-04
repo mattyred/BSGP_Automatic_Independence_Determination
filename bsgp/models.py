@@ -43,7 +43,7 @@ class Model(object):
     def _fit(self, X, Y, lik, Xtest, Ytest, Ystd, **kwargs):
         if len(Y.shape) == 1:
             Y = Y[:, None]
-
+        self.Y = Y
         kerns = []
         if not self.model:
             for i in range(self.ARGS.n_layers):
@@ -88,7 +88,7 @@ class Model(object):
 
                 # MCMC measurement
                 if self.ARGS.mcmc_measures:
-                    ms, vs = self.model.predict_y(Xtest, len(self.model.window), posterior=False)
+                    ms, vs = self.model.predict_y(Xtest, self.Y, len(self.model.window), posterior=False)
                     self.samples_ms_iter[:,it:it+1] = ms[0]
                     self.samples_vs_iter[:,it:it+1] = vs[0]
                     logps = norm.logpdf(np.repeat(Ytest[None, :, :]*Ystd, len(self.model.window), axis=0), ms*Ystd, np.sqrt(vs)*Ystd)
@@ -100,7 +100,7 @@ class Model(object):
                     print('TRAIN | iter = %6d      sample marginal LL = %5.2f' % (it, marginal_ll))
                     # Test with previous samples with Xtest and Ytest are both not None
                     if not (Xtest is None or Ytest is None or Ystd is None):
-                        ms, vs = self.model.predict_y(Xtest, len(self.model.window), posterior=False)
+                        ms, vs = self.model.predict_y(Xtest, self.Y, len(self.model.window), posterior=False)
                         logps = norm.logpdf(np.repeat(Ytest[None, :, :]*Ystd, len(self.model.window), axis=0), ms*Ystd, np.sqrt(vs)*Ystd)
                         mnll = -np.mean(logsumexp(logps, axis=0) - np.log(len(self.model.window)))
                         # writer.add_scalar('test/predictive_nloglikelihood', mnll, self.global_step)
@@ -114,11 +114,11 @@ class Model(object):
             self.model.collect_samples(self.ARGS.num_posterior_samples, self.ARGS.posterior_sample_spacing)
             pass
 
-    def _predict(self, Xs, S):
+    def _predict(self, Xs, Ys, S):
         ms, vs = [], []
         n = max(len(Xs) / 10000, 1) 
         for xs in np.array_split(Xs, n):
-            m, v = self.model.predict_y(xs, S)
+            m, v = self.model.predict_y(xs, Ys, S)
             ms.append(m)
             vs.append(v)
 
@@ -139,12 +139,12 @@ class RegressionModel(Model):
         return m, v
 
     def calculate_density(self, Xs, Ys, ymean=0., ystd=1.):
-        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+        ms, vs = self._predict(Xs, Ys, self.ARGS.num_posterior_samples)
         logps = norm.logpdf(np.repeat(Ys[None, :, :]*ystd, self.ARGS.num_posterior_samples, axis=0), ms*ystd, np.sqrt(vs)*ystd)
         return logsumexp(logps, axis=0) - np.log(self.ARGS.num_posterior_samples)
 
     def calculate_rmse(self, Xs, Ys, ymean=0., ystd=1.):
-        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+        ms, vs = self._predict(Xs, Ys, self.ARGS.num_posterior_samples)
         return np.mean((np.repeat(Ys[None, :, :]*ystd, self.ARGS.num_posterior_samples, axis=0) - ms*ystd)**2, axis=0)**0.5 / ystd
     
     def sample(self, Xs, S):

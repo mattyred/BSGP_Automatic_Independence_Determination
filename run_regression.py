@@ -107,8 +107,6 @@ def save_results_onefold(filepath, onefold_data, precise_kernel):
     else:
         results['posterior_samples_loglengthscales'] = onefold_data['trained_model'].posterior_samples_kern_L
     results['posterior_samples_kern_logvar'] = onefold_data['trained_model'].posterior_samples_kern_logvar
-    results['posterior_samples_U'] = onefold_data['trained_model'].posterior_samples_U
-    results['posterior_samples_Z'] = onefold_data['trained_model'].posterior_samples_Z
     results['X_train_indices'] = onefold_data['X_train_indices'].tolist()
     results['X_test_indices'] = onefold_data['X_test_indices'].tolist()
     results['Pd'] = onefold_data['Pd'].tolist() if args.pca != -1 else None# list of D elements, each with len num_pca_components (each element is a row of Pd)
@@ -150,8 +148,6 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     
     # Save kernel log variance and MNLL for each fold
     results['posterior_samples_kern_logvar'] = []
-    results['posterior_samples_U'] = []
-    results['posterior_samples_Z'] = []
     results['test_mnll'] = []
     results['test_rmse'] = []
     results['X_train_indices'] = []
@@ -159,8 +155,6 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     for i in range(args.kfold):
         model = kfold_data[i]['trained_model'] 
         results['posterior_samples_kern_logvar'].append(model.posterior_samples_kern_logvar)
-        results['posterior_samples_U'].append(model.posterior_samples_U)
-        results['posterior_samples_Z'].append(model.posterior_samples_Z)
         results['X_train_indices'].append(kfold_data[i]['X_train_indices'].tolist())
         results['X_test_indices'].append(kfold_data[i]['X_test_indices'].tolist())
         results['test_mnll'].append(kfold_data[i]['test_mnll'])

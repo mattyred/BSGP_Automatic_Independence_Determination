@@ -237,11 +237,11 @@ class DGP(BaseModel):
         except AttributeError:
             self.session.run(init_op)
 
-    def predict_y(self, X, S, posterior=True):
+    def predict_y(self, X, Y, S, posterior=True):
         # assert S <= len(self.posterior_samples)
         ms, vs = [], []
         for i in range(S):
-            feed_dict = {self.X_placeholder: X}
+            feed_dict = {self.X_placeholder: X, self.Y_placeholder: Y}
             feed_dict.update(self.posterior_samples[i]) if posterior else feed_dict.update(self.window[-(i+1)])
             m, v = self.session.run((self.y_mean, self.y_var), feed_dict=feed_dict)
             ms.append(m)
