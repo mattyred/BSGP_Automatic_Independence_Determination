@@ -159,20 +159,20 @@ class ClassificationModel(Model):
         lik = Bernoulli()
         return self._fit(X, Y, lik, Xtest, Ytest, Ystd, **kwargs)
 
-    def predict(self, Xs):
-        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+    def predict(self, Xs, Ys):
+        ms, vs = self._predict(Xs, Ys, self.ARGS.num_posterior_samples)
         m = np.average(ms, 0)
         v = np.average(vs + ms**2, 0) - m**2
         return m, v
 
     def calculate_density(self, Xs, Ys, ymean=0., ystd=1.):
         # cross-entropy mnll for classification
-        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+        ms, vs = self._predict(Xs, Ys, self.ARGS.num_posterior_samples)
         Ys_ = np.repeat(Ys[None, :, :], self.ARGS.num_posterior_samples, axis=0)
         return np.mean(Ys_ * np.log(ms) + (1 - Ys_) * np.log(1 - ms))
     
     def calculate_accuracy(self, Xs, Ys, ymean=0., ystd=1.):
-        ms, vs = self._predict(Xs, self.ARGS.num_posterior_samples)
+        ms, vs = self._predict(Xs, Ys, self.ARGS.num_posterior_samples)
         Y_pred = ms >= 0.5
         return np.sum(np.repeat(Ys[None, :, :], self.ARGS.num_posterior_samples, axis=0) == Y_pred) / (Ys.shape[0]*self.ARGS.num_posterior_samples)
 

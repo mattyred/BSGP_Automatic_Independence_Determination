@@ -13,6 +13,9 @@ from bsgp.models import ClassificationModel
 import argparse
 import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
+physical_devices = tf.config.list_physical_devices('GPU') 
+for device in physical_devices:
+    tf.config.experimental.set_memory_growth(device, True)
 #tf.debugging.enable_check_numerics() 
 #tf.debugging.experimental.enable_dump_debug_info("./logs/debug",tensor_debug_mode="FULL_HEALTH", circular_buffer_size=-1)
 import json
@@ -109,8 +112,6 @@ def save_results_onefold(filepath, onefold_data, precise_kernel):
     else:
         results['posterior_samples_loglengthscales'] = onefold_data['trained_model'].posterior_samples_kern_L
     results['posterior_samples_kern_logvar'] = onefold_data['trained_model'].posterior_samples_kern_logvar
-    results['posterior_samples_U'] = onefold_data['trained_model'].posterior_samples_U
-    results['posterior_samples_Z'] = onefold_data['trained_model'].posterior_samples_Z
     results['X_train_indices'] = onefold_data['X_train_indices'].tolist()
     results['X_test_indices'] = onefold_data['X_test_indices'].tolist()
     results['Pd'] = onefold_data['Pd'].tolist() if args.pca != -1 else None# list of D elements, each with len num_pca_components (each element is a row of Pd)
@@ -152,8 +153,6 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     
     # Save kernel log variance and MNLL for each fold
     results['posterior_samples_kern_logvar'] = []
-    results['posterior_samples_U'] = []
-    results['posterior_samples_Z'] = []
     results['test_mnll'] = []
     results['test_accuracy'] = []
     results['X_train_indices'] = []
@@ -161,8 +160,6 @@ def save_results_kfold(filepath, kfold_data, precise_kernel):
     for i in range(args.kfold):
         model = kfold_data[i]['trained_model'] 
         results['posterior_samples_kern_logvar'].append(model.posterior_samples_kern_logvar)
-        results['posterior_samples_U'].append(model.posterior_samples_U)
-        results['posterior_samples_Z'].append(model.posterior_samples_Z)
         results['X_train_indices'].append(kfold_data[i]['X_train_indices'].tolist())
         results['X_test_indices'].append(kfold_data[i]['X_test_indices'].tolist())
         results['test_mnll'].append(kfold_data[i]['test_mnll'])
@@ -248,7 +245,7 @@ def main():
 
 def train_model(filepath, X_train, Y_train,  X_test, Y_test, Y_train_mean, Y_train_std, precise_kernel=False):
     model = ClassificationModel(args.prior_type)
-    model.ARGS.num_inducing = args.num_inducing
+    model.ARGS.num_inducing = X_train.shape[0]
     model.ARGS.minibatch_size = args.minibatch_size
     model.ARGS.iterations = args.iterations
     model.ARGS.n_layers = args.n_layers

@@ -13,6 +13,9 @@ from bsgp.models import RegressionModel
 import argparse
 import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
+physical_devices = tf.config.list_physical_devices('GPU') 
+for device in physical_devices:
+    tf.config.experimental.set_memory_growth(device, True)
 import json
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
